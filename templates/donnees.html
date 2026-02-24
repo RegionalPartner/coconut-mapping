@@ -1,0 +1,564 @@
+{% extends "base.html" %}
+{% block title %}Donnees{% endblock %}
+
+{% block content %}
+
+<!-- Legende des badges -->
+<section class="mb-6">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <h2 class="text-lg font-semibold text-gray-800 mb-3">Registre complet des donnees</h2>
+        <p class="text-sm text-gray-500 mb-4">Chaque donnee est qualifiee selon sa nature :</p>
+        <div class="flex flex-wrap gap-3 text-sm">
+            <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-100 text-blue-800 font-medium">
+                <span class="w-2 h-2 rounded-full bg-blue-500"></span>Reel
+            </span>
+            <span class="text-gray-400">&mdash; Donnee mesuree par le satellite ou parametre fixe du systeme</span>
+        </div>
+        <div class="flex flex-wrap gap-3 text-sm mt-2">
+            <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-purple-100 text-purple-800 font-medium">
+                <span class="w-2 h-2 rounded-full bg-purple-500"></span>Calcule
+            </span>
+            <span class="text-gray-400">&mdash; Derive des donnees reelles par algorithme (indices, classification, surfaces)</span>
+        </div>
+        <div class="flex flex-wrap gap-3 text-sm mt-2">
+            <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-100 text-amber-800 font-medium">
+                <span class="w-2 h-2 rounded-full bg-amber-500"></span>Estime
+            </span>
+            <span class="text-gray-400">&mdash; Basee sur des hypotheses (densites, rendements, prix moyens)</span>
+        </div>
+    </div>
+</section>
+
+<!-- 1. Source satellite -->
+<section class="mb-6">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <h2 class="text-base font-semibold text-gray-800 mb-4 flex items-center gap-2">
+            <span class="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-sm font-bold text-blue-700">1</span>
+            Source satellite
+        </h2>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="border-b border-gray-200">
+                        <th class="text-left py-2 pr-4 text-gray-500 font-medium w-1/3">Donnee</th>
+                        <th class="text-left py-2 pr-4 text-gray-500 font-medium">Valeur</th>
+                        <th class="text-center py-2 text-gray-500 font-medium w-28">Type</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    <tr>
+                        <td class="py-2.5 pr-4 text-gray-700">Satellite</td>
+                        <td class="py-2.5 pr-4 font-medium">Sentinel-2 (ESA / Copernicus)</td>
+                        <td class="py-2.5 text-center"><span class="badge-reel">Reel</span></td>
+                    </tr>
+                    <tr>
+                        <td class="py-2.5 pr-4 text-gray-700">Collection</td>
+                        <td class="py-2.5 pr-4 font-mono text-xs">COPERNICUS/S2_SR_HARMONIZED</td>
+                        <td class="py-2.5 text-center"><span class="badge-reel">Reel</span></td>
+                    </tr>
+                    <tr>
+                        <td class="py-2.5 pr-4 text-gray-700">Resolution spatiale</td>
+                        <td class="py-2.5 pr-4 font-medium">{{ metadata.get('scale_meters', 10) }} metres</td>
+                        <td class="py-2.5 text-center"><span class="badge-reel">Reel</span></td>
+                    </tr>
+                    <tr>
+                        <td class="py-2.5 pr-4 text-gray-700">Bandes spectrales</td>
+                        <td class="py-2.5 pr-4 text-xs">Bleu, Vert, Rouge, Infrarouge + indicateurs calcules <span class="text-gray-400 font-mono">({{ metadata.get('bands', []) | join(', ') }})</span></td>
+                        <td class="py-2.5 text-center"><span class="badge-reel">Reel</span></td>
+                    </tr>
+                    <tr>
+                        <td class="py-2.5 pr-4 text-gray-700">Nombre d'images</td>
+                        <td class="py-2.5 pr-4 font-medium">{{ metadata.get('images_used', 0) }}</td>
+                        <td class="py-2.5 text-center"><span class="badge-reel">Reel</span></td>
+                    </tr>
+                    <tr>
+                        <td class="py-2.5 pr-4 text-gray-700">Periode d'acquisition</td>
+                        <td class="py-2.5 pr-4 font-medium">{{ metadata.get('start_date', '') }} &rarr; {{ metadata.get('end_date', '') }}</td>
+                        <td class="py-2.5 text-center"><span class="badge-reel">Reel</span></td>
+                    </tr>
+                    <tr>
+                        <td class="py-2.5 pr-4 text-gray-700">Couverture nuageuse max</td>
+                        <td class="py-2.5 pr-4 font-medium">{{ metadata.get('max_cloud_cover', 20) }}%</td>
+                        <td class="py-2.5 text-center"><span class="badge-reel">Reel</span></td>
+                    </tr>
+                    <tr>
+                        <td class="py-2.5 pr-4 text-gray-700">Methode de composition</td>
+                        <td class="py-2.5 pr-4 font-medium">Mediane temporelle</td>
+                        <td class="py-2.5 text-center"><span class="badge-reel">Reel</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+
+<!-- 2. Zone d'etude -->
+<section class="mb-6">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <h2 class="text-base font-semibold text-gray-800 mb-4 flex items-center gap-2">
+            <span class="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-sm font-bold text-blue-700">2</span>
+            Zone d'etude
+        </h2>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="border-b border-gray-200">
+                        <th class="text-left py-2 pr-4 text-gray-500 font-medium w-1/3">Donnee</th>
+                        <th class="text-left py-2 pr-4 text-gray-500 font-medium">Valeur</th>
+                        <th class="text-center py-2 text-gray-500 font-medium w-28">Type</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    <tr>
+                        <td class="py-2.5 pr-4 text-gray-700">Region</td>
+                        <td class="py-2.5 pr-4 font-medium">{{ metadata.get('region', 'Guadeloupe') }}</td>
+                        <td class="py-2.5 text-center"><span class="badge-reel">Reel</span></td>
+                    </tr>
+                    <tr>
+                        <td class="py-2.5 pr-4 text-gray-700">Bounding box (lng/lat)</td>
+                        <td class="py-2.5 pr-4 font-mono text-xs">{{ metadata.get('bbox', [-61.81, 15.83, -61.00, 16.52]) }}</td>
+                        <td class="py-2.5 text-center"><span class="badge-reel">Reel</span></td>
+                    </tr>
+                    <tr>
+                        <td class="py-2.5 pr-4 text-gray-700">Surface totale de la zone</td>
+                        <td class="py-2.5 pr-4 font-medium">{{ "{:,.0f}".format(metadata.get('area_km2', 0)) }} km2 ({{ "{:,.0f}".format(metadata.get('area_km2', 0) * 100) }} ha)</td>
+                        <td class="py-2.5 text-center"><span class="badge-calcule">Calcule</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+
+<!-- 3. Indicateurs de vegetation -->
+<section class="mb-6">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <h2 class="text-base font-semibold text-gray-800 mb-4 flex items-center gap-2">
+            <span class="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center text-sm font-bold text-purple-700">3</span>
+            Indicateurs de vegetation
+        </h2>
+        <p class="text-sm text-gray-500 mb-4">Le satellite mesure la lumiere reflechie par le sol dans differentes longueurs d'onde (visible, infrarouge). A partir de ces mesures, on calcule des indicateurs qui decrivent l'etat de la vegetation :</p>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="border-b border-gray-200">
+                        <th class="text-left py-2 pr-4 text-gray-500 font-medium w-1/3">Indicateur</th>
+                        <th class="text-left py-2 pr-4 text-gray-500 font-medium">Valeur moyenne</th>
+                        <th class="text-left py-2 pr-4 text-gray-500 font-medium">A quoi ca sert</th>
+                        <th class="text-center py-2 text-gray-500 font-medium w-28">Type</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    <tr>
+                        <td class="py-2.5 pr-4 text-gray-700">Verdure <span class="text-xs text-gray-400">(NDVI)</span></td>
+                        <td class="py-2.5 pr-4 font-medium">{{ "%.3f" | format(metadata.get('statistics', {}).get('NDVI', 0)) }}</td>
+                        <td class="py-2.5 pr-4 text-gray-500 text-xs">Mesure l'intensite du vert — distingue vegetation, sol nu, urbain</td>
+                        <td class="py-2.5 text-center"><span class="badge-calcule">Calcule</span></td>
+                    </tr>
+                    <tr>
+                        <td class="py-2.5 pr-4 text-gray-700">Vitalite <span class="text-xs text-gray-400">(EVI)</span></td>
+                        <td class="py-2.5 pr-4 font-medium">{{ "%.3f" | format(metadata.get('statistics', {}).get('EVI', 0)) }}</td>
+                        <td class="py-2.5 pr-4 text-gray-500 text-xs">Mesure la vigueur des plantes — distingue cocotiers de foret dense</td>
+                        <td class="py-2.5 text-center"><span class="badge-calcule">Calcule</span></td>
+                    </tr>
+                    <tr>
+                        <td class="py-2.5 pr-4 text-gray-700">Detection d'eau <span class="text-xs text-gray-400">(NDWI)</span></td>
+                        <td class="py-2.5 pr-4 text-gray-400 italic">utilise en classification</td>
+                        <td class="py-2.5 pr-4 text-gray-500 text-xs">Identifie ocean, lacs, rivieres — exclut ces zones de l'analyse</td>
+                        <td class="py-2.5 text-center"><span class="badge-calcule">Calcule</span></td>
+                    </tr>
+                    <tr>
+                        <td class="py-2.5 pr-4 text-gray-700">Contraste infrarouge <span class="text-xs text-gray-400">(NIR/R)</span></td>
+                        <td class="py-2.5 pr-4 text-gray-400 italic">utilise en classification</td>
+                        <td class="py-2.5 pr-4 text-gray-500 text-xs">Ratio complementaire pour affiner la detection des types de vegetation</td>
+                        <td class="py-2.5 text-center"><span class="badge-calcule">Calcule</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+
+<!-- 4. Seuils de classification -->
+<section class="mb-6">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <h2 class="text-base font-semibold text-gray-800 mb-4 flex items-center gap-2">
+            <span class="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center text-sm font-bold text-amber-700">4</span>
+            Seuils de classification
+        </h2>
+        <p class="text-sm text-gray-500 mb-4">Seuils definis pour distinguer les types de couverture du sol a partir des indicateurs de vegetation. Filtre de lissage : 30m.</p>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="border-b border-gray-200">
+                        <th class="text-left py-2 pr-4 text-gray-500 font-medium w-1/3">Seuil</th>
+                        <th class="text-left py-2 pr-4 text-gray-500 font-medium">Valeur</th>
+                        <th class="text-left py-2 pr-4 text-gray-500 font-medium">Signification</th>
+                        <th class="text-center py-2 text-gray-500 font-medium w-28">Type</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    <tr class="text-gray-400">
+                        <td class="py-2.5 pr-4">Detection eau <span class="text-xs">(exclue)</span></td>
+                        <td class="py-2.5 pr-4 font-mono font-medium">{{ thresholds.eau_ndwi }}</td>
+                        <td class="py-2.5 pr-4">Au-dessus &rarr; classe comme eau (ocean, lacs)</td>
+                        <td class="py-2.5 text-center"><span class="badge-estime">Estime</span></td>
+                    </tr>
+                    <tr class="text-gray-400">
+                        <td class="py-2.5 pr-4">Verdure min sol nu <span class="text-xs">(exclu)</span></td>
+                        <td class="py-2.5 pr-4 font-mono font-medium">{{ thresholds.sol_nu_ndvi }}</td>
+                        <td class="py-2.5 pr-4">En dessous &rarr; sol nu ou ocean (pas de vegetation)</td>
+                        <td class="py-2.5 text-center"><span class="badge-estime">Estime</span></td>
+                    </tr>
+                    <tr>
+                        <td class="py-2.5 pr-4 text-gray-700">Verdure min urbain</td>
+                        <td class="py-2.5 pr-4 font-mono font-medium">{{ thresholds.urbain_ndvi }}</td>
+                        <td class="py-2.5 pr-4 text-gray-500">Verdure entre {{ thresholds.urbain_ndvi }} et {{ thresholds.sol_nu_ndvi }} &rarr; zones urbanisees</td>
+                        <td class="py-2.5 text-center"><span class="badge-estime">Estime</span></td>
+                    </tr>
+                    <tr>
+                        <td class="py-2.5 pr-4 text-gray-700">Verdure min cultures</td>
+                        <td class="py-2.5 pr-4 font-mono font-medium">{{ thresholds.culture_ndvi_min }}</td>
+                        <td class="py-2.5 pr-4 text-gray-500">Borne basse de verdure pour les cultures (canne, maraichage)</td>
+                        <td class="py-2.5 text-center"><span class="badge-estime">Estime</span></td>
+                    </tr>
+                    <tr>
+                        <td class="py-2.5 pr-4 text-gray-700">Verdure max cultures</td>
+                        <td class="py-2.5 pr-4 font-mono font-medium">{{ thresholds.culture_ndvi_max }}</td>
+                        <td class="py-2.5 pr-4 text-gray-500">Borne haute de verdure pour les cultures</td>
+                        <td class="py-2.5 text-center"><span class="badge-estime">Estime</span></td>
+                    </tr>
+                    <tr class="bg-green-50">
+                        <td class="py-2.5 pr-4 text-gray-700 font-semibold">Verdure min cocotiers</td>
+                        <td class="py-2.5 pr-4 font-mono font-medium">{{ thresholds.cocotier_ndvi_min }}</td>
+                        <td class="py-2.5 pr-4 text-gray-500">Borne basse de verdure pour les cocotiers</td>
+                        <td class="py-2.5 text-center"><span class="badge-estime">Estime</span></td>
+                    </tr>
+                    <tr class="bg-green-50">
+                        <td class="py-2.5 pr-4 text-gray-700 font-semibold">Vitalite min cocotiers</td>
+                        <td class="py-2.5 pr-4 font-mono font-medium">{{ thresholds.cocotier_evi_min }}</td>
+                        <td class="py-2.5 pr-4 text-gray-500">Borne basse de vitalite pour les cocotiers</td>
+                        <td class="py-2.5 text-center"><span class="badge-estime">Estime</span></td>
+                    </tr>
+                    <tr class="bg-green-50">
+                        <td class="py-2.5 pr-4 text-gray-700 font-semibold">Vitalite max cocotiers</td>
+                        <td class="py-2.5 pr-4 font-mono font-medium">{{ thresholds.cocotier_evi_max }}</td>
+                        <td class="py-2.5 pr-4 text-gray-500">Borne haute de vitalite (au-dessus = foret dense)</td>
+                        <td class="py-2.5 text-center"><span class="badge-estime">Estime</span></td>
+                    </tr>
+                    <tr>
+                        <td class="py-2.5 pr-4 text-gray-700">Verdure min foret</td>
+                        <td class="py-2.5 pr-4 font-mono font-medium">{{ thresholds.foret_ndvi }}</td>
+                        <td class="py-2.5 pr-4 text-gray-500">Au-dessus + forte vitalite &rarr; foret dense</td>
+                        <td class="py-2.5 text-center"><span class="badge-estime">Estime</span></td>
+                    </tr>
+                    <tr>
+                        <td class="py-2.5 pr-4 text-gray-700">Vitalite min foret</td>
+                        <td class="py-2.5 pr-4 font-mono font-medium">{{ thresholds.foret_evi }}</td>
+                        <td class="py-2.5 pr-4 text-gray-500">Au-dessus + forte verdure &rarr; foret dense</td>
+                        <td class="py-2.5 text-center"><span class="badge-estime">Estime</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+
+<!-- 5. Surfaces par classe -->
+<section class="mb-6">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <h2 class="text-base font-semibold text-gray-800 mb-4 flex items-center gap-2">
+            <span class="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center text-sm font-bold text-purple-700">5</span>
+            Surfaces par classe (resultats de classification)
+        </h2>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="border-b border-gray-200">
+                        <th class="text-left py-2 pr-4 text-gray-500 font-medium">Classe</th>
+                        <th class="text-right py-2 pr-4 text-gray-500 font-medium">Hectares</th>
+                        <th class="text-right py-2 pr-4 text-gray-500 font-medium">km2</th>
+                        <th class="text-right py-2 pr-4 text-gray-500 font-medium">%</th>
+                        <th class="text-center py-2 text-gray-500 font-medium w-28">Type</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100" id="surfaceTable">
+                </tbody>
+                <tfoot>
+                    <tr class="border-t-2 border-gray-300 font-semibold">
+                        <td class="py-2.5">Total</td>
+                        <td class="py-2.5 text-right" id="surfTotalHa"></td>
+                        <td class="py-2.5 text-right" id="surfTotalKm2"></td>
+                        <td class="py-2.5 text-right">100%</td>
+                        <td class="py-2.5 text-center"><span class="badge-calcule">Calcule</span></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        <p class="text-xs text-gray-400 mt-3">
+            Calcule : surface = nombre de pixels classifies &times; aire par pixel (100 m2 a 10m de resolution).
+            Les pourcentages sont derives des surfaces. La classification depend des seuils (estimes) appliques aux indices (calcules).
+        </p>
+    </div>
+</section>
+
+<!-- 6. Estimations cocotiers -->
+<section class="mb-6">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <h2 class="text-base font-semibold text-gray-800 mb-4 flex items-center gap-2">
+            <span class="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center text-sm font-bold text-amber-700">6</span>
+            Estimations economiques cocotiers
+        </h2>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="border-b border-gray-200">
+                        <th class="text-left py-2 pr-4 text-gray-500 font-medium w-1/3">Donnee</th>
+                        <th class="text-right py-2 pr-4 text-gray-500 font-medium">Valeur</th>
+                        <th class="text-left py-2 pr-4 text-gray-500 font-medium">Calcul / Source</th>
+                        <th class="text-center py-2 text-gray-500 font-medium w-28">Type</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    <tr class="bg-purple-50">
+                        <td class="py-2.5 pr-4 text-gray-700">Surface cocotiers (satellite)</td>
+                        <td class="py-2.5 pr-4 text-right font-medium">{{ "{:,.1f}".format(stats.estimations_cocotiers.surface_cocotiers_ha) }} ha</td>
+                        <td class="py-2.5 pr-4 text-gray-500 text-xs">Pixels classe 5 &times; aire pixel</td>
+                        <td class="py-2.5 text-center"><span class="badge-calcule">Calcule</span></td>
+                    </tr>
+                    {% if conso and conso.synthese and conso.synthese.donnees_corrigees %}
+                    <tr class="bg-green-50 ring-1 ring-green-200">
+                        <td class="py-2.5 pr-4 text-gray-700 font-semibold">Surface en production (SAA)</td>
+                        <td class="py-2.5 pr-4 text-right font-medium text-green-700">~{{ conso.synthese.surface_saa_ha | int }} ha</td>
+                        <td class="py-2.5 pr-4 text-green-600 text-xs">Agreste SAA 2022 (ratio {{ conso.synthese.ratio_satellite_vs_saa }} vs satellite)</td>
+                        <td class="py-2.5 text-center"><span class="badge-reel">Reel</span></td>
+                    </tr>
+                    <tr class="bg-green-50">
+                        <td class="py-2.5 pr-4 text-gray-500 pl-4 text-xs">dont exploitations declarees</td>
+                        <td class="py-2.5 pr-4 text-right font-medium text-gray-500">{{ conso.synthese.surface_declaree_ha }} ha</td>
+                        <td class="py-2.5 pr-4 text-gray-400 text-xs">Memento DAAF 2020 (8 fermes)</td>
+                        <td class="py-2.5 text-center"><span class="badge-reel">Reel</span></td>
+                    </tr>
+                    {% endif %}
+                    <tr class="bg-amber-50">
+                        <td class="py-2.5 pr-4 text-gray-700">Densite cocotiers</td>
+                        <td class="py-2.5 pr-4 text-right font-medium">{{ stats.estimations_cocotiers.densite_arbres_ha }} arbres/ha</td>
+                        <td class="py-2.5 pr-4 text-gray-500 text-xs">Hypothese : moyenne plantation tropicale</td>
+                        <td class="py-2.5 text-center"><span class="badge-estime">Estime</span></td>
+                    </tr>
+                    <tr class="bg-amber-50">
+                        <td class="py-2.5 pr-4 text-gray-700 font-semibold">Nombre d'arbres</td>
+                        <td class="py-2.5 pr-4 text-right font-medium">~{{ "{:,.0f}".format(stats.estimations_cocotiers.nombre_arbres_estime) }}</td>
+                        <td class="py-2.5 pr-4 text-gray-500 text-xs">{{ "{:,.1f}".format(stats.estimations_cocotiers.surface_cocotiers_ha) }} ha &times; {{ stats.estimations_cocotiers.densite_arbres_ha }} arbres/ha</td>
+                        <td class="py-2.5 text-center"><span class="badge-estime">Estime</span></td>
+                    </tr>
+                    {% if conso and conso.sources.agreste_daaf.status == 'ok' %}
+                    <tr class="bg-green-50">
+                        <td class="py-2.5 pr-4 text-gray-700">Rendement officiel</td>
+                        <td class="py-2.5 pr-4 text-right font-medium">{{ conso.sources.agreste_daaf.data.rendement_tonnes_ha }} t/ha/an</td>
+                        <td class="py-2.5 pr-4 text-gray-500 text-xs">DAAF Guadeloupe 2020</td>
+                        <td class="py-2.5 text-center"><span class="badge-reel">Reel</span></td>
+                    </tr>
+                    {% endif %}
+                    <tr class="bg-amber-50">
+                        <td class="py-2.5 pr-4 text-gray-700">Rendement par arbre</td>
+                        <td class="py-2.5 pr-4 text-right font-medium">70 noix/an</td>
+                        <td class="py-2.5 pr-4 text-gray-500 text-xs">Hypothese : moyenne tropicale</td>
+                        <td class="py-2.5 text-center"><span class="badge-estime">Estime</span></td>
+                    </tr>
+                    <tr class="bg-amber-50">
+                        <td class="py-2.5 pr-4 text-gray-700 font-semibold">Production annuelle</td>
+                        <td class="py-2.5 pr-4 text-right font-medium">~{{ "{:,.0f}".format(stats.estimations_cocotiers.production_noix_an) }} noix</td>
+                        <td class="py-2.5 pr-4 text-gray-500 text-xs">{{ "{:,.0f}".format(stats.estimations_cocotiers.nombre_arbres_estime) }} arbres &times; 70 noix/an</td>
+                        <td class="py-2.5 text-center"><span class="badge-estime">Estime</span></td>
+                    </tr>
+                    {% if conso and conso.sources.agreste_daaf.status == 'ok' %}
+                    <tr class="bg-green-50 ring-1 ring-green-200">
+                        <td class="py-2.5 pr-4 text-gray-700 font-semibold">Prix unitaire noix</td>
+                        <td class="py-2.5 pr-4 text-right font-medium text-green-700">0,75 &euro;</td>
+                        <td class="py-2.5 pr-4 text-green-600 text-xs">DAAF Guadeloupe 2020 (corrige de 0,25 &euro;)</td>
+                        <td class="py-2.5 text-center"><span class="badge-reel">Reel</span></td>
+                    </tr>
+                    {% else %}
+                    <tr class="bg-amber-50">
+                        <td class="py-2.5 pr-4 text-gray-700">Prix unitaire noix</td>
+                        <td class="py-2.5 pr-4 text-right font-medium">0,25 &euro;</td>
+                        <td class="py-2.5 pr-4 text-gray-500 text-xs">Hypothese : prix moyen producteur</td>
+                        <td class="py-2.5 text-center"><span class="badge-estime">Estime</span></td>
+                    </tr>
+                    {% endif %}
+                    {% if conso and conso.sources.agreste_daaf.status == 'ok' %}
+                    <tr class="bg-green-50 border-t-2 border-green-400">
+                        <td class="py-2.5 pr-4 text-gray-800 font-bold">Valeur economique annuelle</td>
+                        <td class="py-2.5 pr-4 text-right font-bold text-lg text-green-700">~{{ "{:,.0f}".format(stats.estimations_cocotiers.production_noix_an * 0.75) }} &euro;</td>
+                        <td class="py-2.5 pr-4 text-green-600 text-xs">{{ "{:,.0f}".format(stats.estimations_cocotiers.production_noix_an) }} noix &times; 0,75 &euro; (DAAF)</td>
+                        <td class="py-2.5 text-center"><span class="badge-reel">Reel</span></td>
+                    </tr>
+                    {% else %}
+                    <tr class="bg-amber-50 border-t-2 border-amber-300">
+                        <td class="py-2.5 pr-4 text-gray-800 font-bold">Valeur economique annuelle</td>
+                        <td class="py-2.5 pr-4 text-right font-bold text-lg">~{{ "{:,.0f}".format(stats.estimations_cocotiers.valeur_estimee_eur_an) }} &euro;</td>
+                        <td class="py-2.5 pr-4 text-gray-500 text-xs">{{ "{:,.0f}".format(stats.estimations_cocotiers.production_noix_an) }} noix &times; 0,25 &euro;</td>
+                        <td class="py-2.5 text-center"><span class="badge-estime">Estime</span></td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Chaine de calcul -->
+        <div class="mt-5 bg-gray-50 rounded-lg p-4">
+            <h3 class="text-sm font-semibold text-gray-700 mb-2">Chaine de calcul complete</h3>
+            <div class="flex flex-wrap items-center gap-2 text-xs">
+                <span class="px-2 py-1 rounded bg-blue-100 text-blue-800">{{ metadata.get('images_used', 182) }} images satellite</span>
+                <span class="text-gray-400">&rarr;</span>
+                <span class="px-2 py-1 rounded bg-purple-100 text-purple-800">Indicateurs vegetation</span>
+                <span class="text-gray-400">&rarr;</span>
+                <span class="px-2 py-1 rounded bg-amber-100 text-amber-800">Seuils de classification</span>
+                <span class="text-gray-400">&rarr;</span>
+                <span class="px-2 py-1 rounded bg-purple-100 text-purple-800">{{ "{:,.1f}".format(stats.estimations_cocotiers.surface_cocotiers_ha) }} ha</span>
+                <span class="text-gray-400">&rarr;</span>
+                {% if conso and conso.sources.agreste_daaf.status == 'ok' %}
+                <span class="px-2 py-1 rounded bg-amber-100 text-amber-800">&times; 120 &times; 70</span>
+                <span class="text-gray-400">&rarr;</span>
+                <span class="px-2 py-1 rounded bg-green-100 text-green-800 font-semibold">&times; 0,75&euro; (DAAF)</span>
+                <span class="text-gray-400">&rarr;</span>
+                <span class="px-2 py-1 rounded bg-green-200 text-green-900 font-semibold">{{ "{:,.0f}".format(stats.estimations_cocotiers.production_noix_an * 0.75) }} &euro;/an</span>
+                {% else %}
+                <span class="px-2 py-1 rounded bg-amber-100 text-amber-800">&times; 120 &times; 70 &times; 0,25&euro;</span>
+                <span class="text-gray-400">&rarr;</span>
+                <span class="px-2 py-1 rounded bg-amber-200 text-amber-900 font-semibold">{{ "{:,.0f}".format(stats.estimations_cocotiers.valeur_estimee_eur_an) }} &euro;/an</span>
+                {% endif %}
+            </div>
+            <div class="flex flex-wrap items-center gap-2 text-xs mt-2">
+                <span class="badge-reel text-xs">Reel</span>
+                <span class="text-gray-400">&rarr;</span>
+                <span class="badge-calcule text-xs">Calcule</span>
+                <span class="text-gray-400">&rarr;</span>
+                <span class="badge-estime text-xs">Estime</span>
+                <span class="text-gray-400">&rarr;</span>
+                <span class="badge-calcule text-xs">Calcule</span>
+                <span class="text-gray-400">&rarr;</span>
+                <span class="badge-estime text-xs">Estime</span>
+                <span class="text-gray-400">&rarr;</span>
+                {% if conso and conso.sources.agreste_daaf.status == 'ok' %}
+                <span class="badge-reel text-xs">Reel</span>
+                {% else %}
+                <span class="badge-estime text-xs">Estime</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- 7. Metadonnees execution -->
+<section class="mb-6">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <h2 class="text-base font-semibold text-gray-800 mb-4 flex items-center gap-2">
+            <span class="w-8 h-8 rounded-lg bg-gray-200 flex items-center justify-center text-sm font-bold text-gray-600">7</span>
+            Metadonnees d'execution
+        </h2>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="border-b border-gray-200">
+                        <th class="text-left py-2 pr-4 text-gray-500 font-medium w-1/3">Donnee</th>
+                        <th class="text-left py-2 pr-4 text-gray-500 font-medium">Valeur</th>
+                        <th class="text-center py-2 text-gray-500 font-medium w-28">Type</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    <tr>
+                        <td class="py-2.5 pr-4 text-gray-700">Date d'analyse</td>
+                        <td class="py-2.5 pr-4 font-medium">{{ stats.get('date_analyse', metadata.get('date', ''))[:19] }}</td>
+                        <td class="py-2.5 text-center"><span class="badge-reel">Reel</span></td>
+                    </tr>
+                    <tr>
+                        <td class="py-2.5 pr-4 text-gray-700">Export ID (Earth Engine)</td>
+                        <td class="py-2.5 pr-4 font-mono text-xs">{{ metadata.get('export_id', 'N/A') }}</td>
+                        <td class="py-2.5 text-center"><span class="badge-reel">Reel</span></td>
+                    </tr>
+                    <tr>
+                        <td class="py-2.5 pr-4 text-gray-700">Moteur de traitement</td>
+                        <td class="py-2.5 pr-4 font-medium">Google Earth Engine</td>
+                        <td class="py-2.5 text-center"><span class="badge-reel">Reel</span></td>
+                    </tr>
+                    <tr>
+                        <td class="py-2.5 pr-4 text-gray-700">Echelle de reduction stats</td>
+                        <td class="py-2.5 pr-4 font-medium">30 m (pour performance)</td>
+                        <td class="py-2.5 text-center"><span class="badge-reel">Reel</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+
+<!-- Compteurs -->
+<section class="mb-6">
+    <div class="bg-gray-50 rounded-xl border border-gray-200 p-5">
+        <h2 class="text-base font-semibold text-gray-700 mb-3">Synthese des types de donnees</h2>
+        <div class="grid grid-cols-3 gap-4 text-center">
+            <div class="bg-white rounded-lg p-4 border border-gray-100">
+                {% if conso and conso.sources.agreste_daaf.status == 'ok' %}
+                <div class="text-2xl font-bold text-blue-600">18</div>
+                {% else %}
+                <div class="text-2xl font-bold text-blue-600">15</div>
+                {% endif %}
+                <div class="text-sm text-gray-500 mt-1"><span class="badge-reel">Reel</span></div>
+                <div class="text-xs text-gray-400 mt-1">Mesures satellite, parametres{% if conso %}, DAAF{% endif %}</div>
+            </div>
+            <div class="bg-white rounded-lg p-4 border border-gray-100">
+                <div class="text-2xl font-bold text-purple-600">12</div>
+                <div class="text-sm text-gray-500 mt-1"><span class="badge-calcule">Calcule</span></div>
+                <div class="text-xs text-gray-400 mt-1">Indices, surfaces, pourcentages</div>
+            </div>
+            <div class="bg-white rounded-lg p-4 border border-gray-100">
+                {% if conso and conso.sources.agreste_daaf.status == 'ok' %}
+                <div class="text-2xl font-bold text-amber-600">13</div>
+                {% else %}
+                <div class="text-2xl font-bold text-amber-600">16</div>
+                {% endif %}
+                <div class="text-sm text-gray-500 mt-1"><span class="badge-estime">Estime</span></div>
+                <div class="text-xs text-gray-400 mt-1">Seuils, hypotheses, projections</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const colors = {
+        'Eau': '#2196F3', 'Sol nu': '#795548', 'Urbain': '#9E9E9E',
+        'Cultures (canne, etc.)': '#FFC107', 'Cocotiers probables': '#4CAF50',
+        'Foret dense': '#1B5E20', 'Autre vegetation': '#8BC34A'
+    };
+    const exclude = ['Eau', 'Sol nu'];
+    const tbody = document.getElementById('surfaceTable');
+    let totalHa = 0, totalKm2 = 0;
+    for (const [k, v] of Object.entries(CLASSIFICATION)) {
+        if (exclude.includes(k)) continue;
+        totalHa += v.hectares;
+        totalKm2 += v.km2;
+    }
+    for (const [name, data] of Object.entries(CLASSIFICATION)) {
+        if (exclude.includes(name)) continue;
+        const pct = ((data.hectares / totalHa) * 100).toFixed(1);
+        const isCoco = name.includes('Cocotier');
+        const cls = isCoco ? 'bg-green-50 font-semibold' : '';
+        tbody.innerHTML += `<tr class="${cls}">
+            <td class="py-2.5 pr-4"><span class="inline-block w-3 h-3 rounded mr-2" style="background:${colors[name] || '#ccc'}"></span>${name}</td>
+            <td class="py-2.5 pr-4 text-right font-mono text-xs">${data.hectares.toLocaleString('fr-FR')}</td>
+            <td class="py-2.5 pr-4 text-right font-mono text-xs">${data.km2.toLocaleString('fr-FR')}</td>
+            <td class="py-2.5 pr-4 text-right font-mono text-xs">${pct}%</td>
+            <td class="py-2.5 text-center"><span class="badge-calcule">Calcule</span></td>
+        </tr>`;
+    }
+    document.getElementById('surfTotalHa').textContent = totalHa.toLocaleString('fr-FR', {maximumFractionDigits: 0});
+    document.getElementById('surfTotalKm2').textContent = totalKm2.toLocaleString('fr-FR', {maximumFractionDigits: 1});
+});
+</script>
+{% endblock %}

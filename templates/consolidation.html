@@ -1,0 +1,427 @@
+{% extends "base.html" %}
+{% block title %}Consolidation{% endblock %}
+
+{% block content %}
+
+{% if not conso %}
+<!-- Pas de donnees de consolidation -->
+<section class="mb-6">
+    <div class="bg-amber-50 border-l-4 border-amber-400 rounded-r-xl p-6">
+        <h2 class="text-lg font-semibold text-amber-800 mb-2">Consolidation non disponible</h2>
+        <p class="text-sm text-amber-900">
+            Executez <code class="bg-amber-100 px-2 py-0.5 rounded font-mono">python consolidate_data.py</code>
+            pour recuperer et croiser les 5 sources de donnees externes.
+        </p>
+        <p class="text-xs text-amber-700 mt-2">
+            Sources : Sentinel-1 Radar, RPG, Corine Land Cover, Cadastre IGN, Agreste/DAAF
+        </p>
+    </div>
+</section>
+
+{% else %}
+
+<!-- KPIs -->
+<section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <div class="flex items-center gap-3 mb-2">
+            <div class="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
+                <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+            </div>
+            <span class="text-sm text-gray-500 font-medium">Concordance globale</span>
+        </div>
+        <div class="text-3xl font-bold text-gray-900">{{ conso.synthese.concordance_globale_pct | int }}%</div>
+        <div class="text-xs text-gray-400 mt-1">Entre sources croisees</div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <div class="flex items-center gap-3 mb-2">
+            <div class="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
+                <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/>
+                </svg>
+            </div>
+            <span class="text-sm text-gray-500 font-medium">Sources actives</span>
+        </div>
+        <div class="text-3xl font-bold text-gray-900" id="sourcesCount"></div>
+        <div class="text-xs text-gray-400 mt-1">Donnees recuperees</div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <div class="flex items-center gap-3 mb-2">
+            <div class="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center">
+                <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+                </svg>
+            </div>
+            <span class="text-sm text-gray-500 font-medium">Ratio satellite / SAA</span>
+        </div>
+        <div class="text-3xl font-bold text-red-600">{{ conso.synthese.ratio_satellite_vs_saa }}</div>
+        <div class="text-xs text-gray-400 mt-1">Detection vs production reelle</div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <div class="flex items-center gap-3 mb-2">
+            <div class="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center">
+                <svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                </svg>
+            </div>
+            <span class="text-sm text-gray-500 font-medium">Donnees corrigees</span>
+        </div>
+        <div class="text-3xl font-bold text-emerald-600">{{ conso.synthese.donnees_corrigees | length }}</div>
+        <div class="text-xs text-gray-400 mt-1">Estime &rarr; Reel</div>
+    </div>
+</section>
+
+<!-- Etat des sources -->
+<section class="mb-6">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4">Etat des sources externes</h2>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="border-b border-gray-200">
+                        <th class="text-left py-2 pr-4 text-gray-500 font-medium">Source</th>
+                        <th class="text-center py-2 pr-4 text-gray-500 font-medium w-24">Statut</th>
+                        <th class="text-left py-2 pr-4 text-gray-500 font-medium">Detail</th>
+                        <th class="text-center py-2 text-gray-500 font-medium w-28">Type</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    {% set source_names = {
+                        'sentinel1_radar': 'Sentinel-1 Radar (SAR)',
+                        'rpg': 'RPG (Registre Parcellaire)',
+                        'oso_theia': 'OSO Theia / Corine Land Cover',
+                        'cadastre_ign': 'Cadastre IGN (API Carto)',
+                        'agreste_daaf': 'Agreste / DAAF Guadeloupe'
+                    } %}
+                    {% for key, src in conso.sources.items() %}
+                    <tr>
+                        <td class="py-2.5 pr-4 text-gray-700 font-medium">{{ source_names.get(key, key) }}</td>
+                        <td class="py-2.5 pr-4 text-center">
+                            {% if src.status == 'ok' %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">OK</span>
+                            {% elif src.status in ['indisponible', 'partiel'] %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">{{ 'Partiel' if src.status == 'partiel' else 'N/A' }}</span>
+                            {% elif src.status == 'vide' %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">Vide</span>
+                            {% else %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">Erreur</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-2.5 pr-4 text-gray-500 text-xs">{{ src.status_detail }}</td>
+                        <td class="py-2.5 text-center"><span class="badge-{{ src.badge | lower }}">{{ src.badge }}</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+
+<!-- Comparaison Satellite vs Officiel -->
+<section class="mb-6">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4">Comparaison Satellite vs Officiel</h2>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="border-b border-gray-200">
+                        <th class="text-left py-2 pr-4 text-gray-500 font-medium">Donnee</th>
+                        <th class="text-right py-2 pr-4 text-gray-500 font-medium">Satellite</th>
+                        <th class="text-right py-2 pr-4 text-gray-500 font-medium">Officiel</th>
+                        <th class="text-right py-2 pr-4 text-gray-500 font-medium">Ecart</th>
+                        <th class="text-center py-2 text-gray-500 font-medium w-36">Confiance</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    <tr>
+                        <td class="py-2.5 pr-4 text-gray-700">Surface cocotiers (satellite)</td>
+                        <td class="py-2.5 pr-4 text-right font-mono">{{ "{:,.1f}".format(conso.satellite_reference.surface_cocotiers_ha) }} ha</td>
+                        <td class="py-2.5 pr-4 text-right font-mono">{{ conso.synthese.surface_saa_ha }} ha (SAA)</td>
+                        <td class="py-2.5 pr-4 text-right font-mono text-red-600">
+                            {% if conso.synthese.surface_saa_ha > 0 %}
+                            x{{ (conso.satellite_reference.surface_cocotiers_ha / conso.synthese.surface_saa_ha) | round(0) | int }}
+                            {% else %}N/A{% endif %}
+                        </td>
+                        <td class="py-2.5 text-center">
+                            {% set sc = conso.synthese.confiance_par_donnee.surface_detectee %}
+                            <div class="w-full bg-gray-200 rounded-full h-2 mb-1">
+                                <div class="{{ 'bg-green-500' if sc.score >= 0.7 else ('bg-amber-500' if sc.score >= 0.4 else 'bg-red-500') }} h-2 rounded-full" style="width: {{ (sc.score * 100) | round(0) }}%"></div>
+                            </div>
+                            <span class="text-xs text-gray-500">{{ sc.label }}</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="py-2.5 pr-4 text-gray-700 text-xs text-gray-500 pl-4">dont exploitations declarees</td>
+                        <td class="py-2.5 pr-4 text-right font-mono text-gray-400">--</td>
+                        <td class="py-2.5 pr-4 text-right font-mono text-gray-500">{{ conso.synthese.surface_declaree_ha }} ha</td>
+                        <td class="py-2.5 pr-4 text-right font-mono text-gray-400">
+                            x{{ (conso.satellite_reference.surface_cocotiers_ha / conso.synthese.surface_declaree_ha) | round(0) | int }}
+                        </td>
+                        <td class="py-2.5 text-center">
+                            <span class="text-xs text-gray-400">8 fermes</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="py-2.5 pr-4 text-gray-700">Surface confirmee radar</td>
+                        <td class="py-2.5 pr-4 text-right font-mono">{{ "{:,.0f}".format(conso.synthese.surface_confirmee_radar_ha) }} ha</td>
+                        <td class="py-2.5 pr-4 text-right font-mono text-gray-400">--</td>
+                        <td class="py-2.5 pr-4 text-right font-mono">
+                            {% set radar_data = conso.sources.get('sentinel1_radar', {}).get('data', {}) %}
+                            {{ radar_data.get('radar_confirmation_pct', 0) }}%
+                        </td>
+                        <td class="py-2.5 text-center">
+                            <span class="badge-calcule">Calcule</span>
+                        </td>
+                    </tr>
+                    <tr class="bg-green-50">
+                        <td class="py-2.5 pr-4 text-gray-700 font-semibold">Prix noix de coco</td>
+                        <td class="py-2.5 pr-4 text-right font-mono">
+                            {{ conso.synthese.donnees_corrigees.prix_noix_eur.ancien }} EUR
+                            <span class="badge-estime ml-1">Estime</span>
+                        </td>
+                        <td class="py-2.5 pr-4 text-right font-mono font-semibold">
+                            {{ conso.synthese.donnees_corrigees.prix_noix_eur.nouveau }} EUR
+                            <span class="badge-reel ml-1">Reel</span>
+                        </td>
+                        <td class="py-2.5 pr-4 text-right font-mono text-green-600">
+                            x{{ (conso.synthese.donnees_corrigees.prix_noix_eur.nouveau / conso.synthese.donnees_corrigees.prix_noix_eur.ancien) | round(1) }}
+                        </td>
+                        <td class="py-2.5 text-center">
+                            {% set pc = conso.synthese.confiance_par_donnee.prix_unitaire %}
+                            <div class="w-full bg-gray-200 rounded-full h-2 mb-1">
+                                <div class="bg-green-500 h-2 rounded-full" style="width: {{ (pc.score * 100) | round(0) }}%"></div>
+                            </div>
+                            <span class="text-xs text-gray-500">{{ pc.label }}</span>
+                        </td>
+                    </tr>
+                    <tr class="bg-green-50">
+                        <td class="py-2.5 pr-4 text-gray-700 font-semibold">Rendement</td>
+                        <td class="py-2.5 pr-4 text-right font-mono text-gray-400">non defini</td>
+                        <td class="py-2.5 pr-4 text-right font-mono font-semibold">
+                            {{ conso.synthese.donnees_corrigees.rendement_tonnes_ha.nouveau }} t/ha
+                            <span class="badge-reel ml-1">Reel</span>
+                        </td>
+                        <td class="py-2.5 pr-4 text-right font-mono text-green-600">nouveau</td>
+                        <td class="py-2.5 text-center">
+                            <span class="badge-reel">Reel</span>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+
+<!-- Donnees corrigees -->
+<section class="mb-6">
+    <div class="bg-green-50 border-l-4 border-green-500 rounded-r-xl p-5">
+        <h2 class="text-lg font-semibold text-green-800 mb-3">Donnees corrigees grace aux sources externes</h2>
+        <div class="space-y-3">
+            {% for key, corr in conso.synthese.donnees_corrigees.items() %}
+            <div class="bg-white rounded-lg p-4 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <span class="text-sm font-medium text-gray-800">{{ key | replace('_', ' ') | title }}</span>
+                    <span class="text-xs text-gray-400 ml-2">({{ corr.source }})</span>
+                    {% if corr.get('note') %}
+                    <p class="text-xs text-gray-400 mt-0.5">{{ corr.note }}</p>
+                    {% endif %}
+                </div>
+                <div class="flex items-center gap-3">
+                    <span class="badge-{{ corr.badge_avant | lower }}">{{ corr.badge_avant }}</span>
+                    <span class="text-gray-400">&rarr;</span>
+                    <span class="badge-{{ corr.badge_apres | lower }}">{{ corr.badge_apres }}</span>
+                    <span class="font-mono text-sm ml-2">
+                        {% if corr.ancien is not none %}{{ corr.ancien }}{% else %}--{% endif %}
+                        &rarr; <strong>{{ corr.nouveau }}</strong>
+                    </span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<!-- Detail par source -->
+{% set source_labels = {
+    'sentinel1_radar': 'Sentinel-1 Radar (SAR)',
+    'rpg': 'RPG - Registre Parcellaire Graphique',
+    'oso_theia': 'OSO Theia / Corine Land Cover',
+    'cadastre_ign': 'Cadastre IGN (API Carto)',
+    'agreste_daaf': 'Agreste / DAAF Guadeloupe'
+} %}
+{% set source_colors = {
+    'ok': ('bg-green-100', 'text-green-700'),
+    'partiel': ('bg-amber-100', 'text-amber-700'),
+    'indisponible': ('bg-gray-100', 'text-gray-500'),
+    'erreur': ('bg-red-100', 'text-red-700'),
+    'vide': ('bg-gray-100', 'text-gray-500'),
+} %}
+
+{% for key, src in conso.sources.items() %}
+{% set colors = source_colors.get(src.status, ('bg-gray-100', 'text-gray-500')) %}
+<section class="mb-6">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <h2 class="text-base font-semibold text-gray-800 mb-3 flex items-center gap-2">
+            <span class="w-8 h-8 rounded-lg {{ colors[0] }} flex items-center justify-center text-sm font-bold {{ colors[1] }}">
+                {{ loop.index }}
+            </span>
+            {{ source_labels.get(key, key) }}
+            <span class="badge-{{ src.badge | lower }} ml-2">{{ src.badge }}</span>
+        </h2>
+
+        <p class="text-sm text-gray-600 mb-4 bg-gray-50 rounded-lg p-3">
+            {{ src.interpretation }}
+        </p>
+
+        {% if src.data %}
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <tbody class="divide-y divide-gray-100">
+                    {% for dkey, dval in src.data.items() %}
+                    {% if dval is string or dval is number %}
+                    <tr>
+                        <td class="py-2 pr-4 text-gray-500 w-1/3">{{ dkey | replace('_', ' ') }}</td>
+                        <td class="py-2 font-medium">{{ dval }}</td>
+                    </tr>
+                    {% elif dval is sameas true or dval is sameas false %}
+                    <tr>
+                        <td class="py-2 pr-4 text-gray-500 w-1/3">{{ dkey | replace('_', ' ') }}</td>
+                        <td class="py-2 font-medium">{{ 'Oui' if dval else 'Non' }}</td>
+                    </tr>
+                    {% endif %}
+                    {% endfor %}
+
+                    {# Backscatter radar - affichage special #}
+                    {% if src.data.get('backscatter_par_classe') %}
+                    <tr>
+                        <td colspan="2" class="py-3">
+                            <p class="text-xs text-gray-500 font-medium mb-2">Backscatter moyen par classe (dB)</p>
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+                                {% for cls, bs in src.data.backscatter_par_classe.items() %}
+                                <div class="bg-gray-50 rounded-lg p-2 text-center">
+                                    <div class="text-xs text-gray-500">{{ cls | title }}</div>
+                                    <div class="text-sm font-mono font-medium">VV: {{ bs.VV_mean_dB }}</div>
+                                    <div class="text-sm font-mono font-medium">VH: {{ bs.VH_mean_dB }}</div>
+                                    <div class="text-xs font-mono text-gray-400">ratio: {{ bs.VH_VV_ratio_dB }}</div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endif %}
+
+                    {# CLC classes - affichage special #}
+                    {% if src.data.get('clc_classes_zone_cocotiers') %}
+                    <tr>
+                        <td colspan="2" class="py-3">
+                            <p class="text-xs text-gray-500 font-medium mb-2">Classes CLC dans les zones cocotiers</p>
+                            <div class="space-y-1">
+                                {% for c in src.data.clc_classes_zone_cocotiers %}
+                                <div class="flex items-center gap-2">
+                                    <div class="flex-1 bg-gray-100 rounded-full h-4">
+                                        <div class="bg-purple-400 h-4 rounded-full text-xs text-white flex items-center pl-2" style="width: {{ c.pct_zone_coco }}%">
+                                            {% if c.pct_zone_coco > 15 %}{{ c.pct_zone_coco }}%{% endif %}
+                                        </div>
+                                    </div>
+                                    <span class="text-xs text-gray-600 w-48 text-right">{{ c.label }}</span>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endif %}
+
+                    {# Communes cadastre - affichage special #}
+                    {% if src.data.get('communes_interrogees') %}
+                    <tr>
+                        <td colspan="2" class="py-3">
+                            <p class="text-xs text-gray-500 font-medium mb-2">Parcelles par commune</p>
+                            <div class="grid grid-cols-2 md:grid-cols-5 gap-2">
+                                {% for c in src.data.communes_interrogees %}
+                                <div class="bg-gray-50 rounded-lg p-2 text-center">
+                                    <div class="text-xs text-gray-500">{{ c.nom }}</div>
+                                    <div class="text-sm font-bold">{{ c.parcelles }}</div>
+                                    {% if c.get('erreur') %}
+                                    <div class="text-xs text-red-500">{{ c.erreur }}</div>
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </div>
+</section>
+{% endfor %}
+
+<!-- Indices de confiance -->
+<section class="mb-6">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4">Indices de confiance par donnee</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {% for key, conf in conso.synthese.confiance_par_donnee.items() %}
+            <div class="bg-gray-50 rounded-lg p-4">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-sm font-medium text-gray-700">{{ key | replace('_', ' ') | title }}</span>
+                    <span class="text-sm font-bold {{ 'text-green-600' if conf.score >= 0.7 else ('text-amber-600' if conf.score >= 0.4 else 'text-red-600') }}">
+                        {{ (conf.score * 100) | round(0) | int }}% - {{ conf.label }}
+                    </span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2.5 mb-2">
+                    <div class="{{ 'bg-green-500' if conf.score >= 0.7 else ('bg-amber-500' if conf.score >= 0.4 else 'bg-red-500') }} h-2.5 rounded-full"
+                         style="width: {{ (conf.score * 100) | round(0) }}%"></div>
+                </div>
+                <ul class="text-xs text-gray-500 space-y-0.5">
+                    {% for raison in conf.raisons %}
+                    <li>&bull; {{ raison }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<!-- Interpretation principale -->
+<section class="mb-6">
+    <div class="bg-blue-50 border-l-4 border-blue-500 rounded-r-xl p-5">
+        <h2 class="text-lg font-semibold text-blue-800 mb-2">Conclusion</h2>
+        <p class="text-sm text-blue-900">{{ conso.synthese.interpretation_principale }}</p>
+    </div>
+</section>
+
+<!-- Metadonnees -->
+<section class="mb-6">
+    <div class="bg-gray-50 rounded-xl border border-gray-200 p-4 text-xs text-gray-500 flex flex-wrap gap-x-4 gap-y-1">
+        <span>Consolidation : {{ conso.date_consolidation[:19] }}</span>
+        <span>|</span>
+        <span>Reference : {{ conso.satellite_reference.surface_cocotiers_ha }} ha detectes</span>
+        <span>|</span>
+        <span>{{ conso.sources | length }} sources interrogees</span>
+    </div>
+</section>
+
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    {% if conso %}
+    // Compter les sources actives
+    const sources = {{ conso.sources | tojson }};
+    const activeCount = Object.values(sources).filter(s => s.status === 'ok' || s.status === 'partiel').length;
+    document.getElementById('sourcesCount').textContent = activeCount + ' / ' + Object.keys(sources).length;
+    {% endif %}
+});
+</script>
+{% endblock %}

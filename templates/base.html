@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Dashboard{% endblock %} - Coconut Mapping</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+    <link rel="stylesheet" href="/static/css/custom.css">
+    <script>
+      tailwind.config = {
+        theme: { extend: { colors: {
+          'coco': { 50: '#F0FDF4', 100: '#DCFCE7', 500: '#4CAF50', 700: '#1B5E20' }
+        }}}
+      }
+    </script>
+</head>
+<body class="bg-gray-50 min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-gradient-to-r from-green-900 to-green-700 text-white shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-5 flex items-center justify-between">
+            <div>
+                <h1 class="text-2xl font-bold tracking-tight">Coconut Mapping</h1>
+                <p class="text-green-300 text-sm mt-0.5">Guadeloupe &mdash; Analyse satellite Sentinel-2</p>
+            </div>
+            <div class="text-right text-sm text-green-300 hidden sm:block">
+                <div>{{ metadata.get('date', '')[:10] if metadata else '' }}</div>
+                <div>{{ metadata.get('images_used', '') }} images</div>
+            </div>
+        </div>
+
+        <!-- Onglets -->
+        <nav class="max-w-7xl mx-auto px-4 sm:px-6 flex gap-1">
+            <a href="/client"
+               class="tab-link px-5 py-2.5 rounded-t-lg text-sm font-medium transition-colors
+                      {% if active == 'client' %}bg-gray-50 text-green-800{% else %}text-green-200 hover:bg-green-800{% endif %}">
+                Vue Direction
+            </a>
+            <a href="/technique"
+               class="tab-link px-5 py-2.5 rounded-t-lg text-sm font-medium transition-colors
+                      {% if active == 'technique' %}bg-gray-50 text-green-800{% else %}text-green-200 hover:bg-green-800{% endif %}">
+                Vue Technique
+            </a>
+            <a href="/donnees"
+               class="tab-link px-5 py-2.5 rounded-t-lg text-sm font-medium transition-colors
+                      {% if active == 'donnees' %}bg-gray-50 text-green-800{% else %}text-green-200 hover:bg-green-800{% endif %}">
+                Donnees
+            </a>
+            <a href="/consolidation"
+               class="tab-link px-5 py-2.5 rounded-t-lg text-sm font-medium transition-colors
+                      {% if active == 'consolidation' %}bg-gray-50 text-green-800{% else %}text-green-200 hover:bg-green-800{% endif %}">
+                Consolidation
+            </a>
+        </nav>
+    </header>
+
+    <!-- Contenu -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-8">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-100 border-t border-gray-200 mt-auto">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-4 text-xs text-gray-500 flex flex-wrap gap-x-6 gap-y-1">
+            <span>Source : Copernicus Sentinel-2 SR Harmonized</span>
+            <span>Traitement : Google Earth Engine</span>
+            <span>Coconut Mapping &mdash; Guadeloupe 2024</span>
+        </div>
+    </footer>
+
+    <!-- Data injection -->
+    <script>
+        const STATS = {{ stats | tojson }};
+        const CLASSIFICATION = STATS.classification || {};
+        const ESTIMATIONS = STATS.estimations_cocotiers || {};
+    </script>
+    <script src="/static/js/charts.js"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

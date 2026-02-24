@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+{% block title %}Vue Direction{% endblock %}
+
+{% block content %}
+
+<!-- KPIs -->
+<section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-10">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <div class="flex items-center gap-3 mb-2">
+            <div class="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center text-xl">
+                <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+            </div>
+            <span class="text-sm text-gray-500 font-medium">Surface identifiee</span>
+        </div>
+        <div class="text-3xl font-bold text-gray-900">{{ "{:,.0f}".format(stats.estimations_cocotiers.surface_cocotiers_ha) }} <span class="text-lg font-normal text-gray-400">ha</span></div>
+        <div class="text-xs text-gray-400 mt-1">{{ "{:,.1f}".format(stats.estimations_cocotiers.surface_cocotiers_ha / 100) }} km&sup2;</div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <div class="flex items-center gap-3 mb-2">
+            <div class="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center">
+                <svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/>
+                </svg>
+            </div>
+            <span class="text-sm text-gray-500 font-medium">Arbres estimes</span>
+        </div>
+        <div class="text-3xl font-bold text-gray-900">~{{ "{:,.0f}".format(stats.estimations_cocotiers.nombre_arbres_estime / 1000) }}<span class="text-lg font-normal text-gray-400"> milliers</span></div>
+        <div class="text-xs text-gray-400 mt-1">{{ stats.estimations_cocotiers.densite_arbres_ha }} arbres/ha en moyenne</div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <div class="flex items-center gap-3 mb-2">
+            <div class="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center">
+                <svg class="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                </svg>
+            </div>
+            <span class="text-sm text-gray-500 font-medium">Production annuelle</span>
+        </div>
+        <div class="text-3xl font-bold text-gray-900">~{{ "{:,.0f}".format(stats.estimations_cocotiers.production_noix_an / 1000000) }}<span class="text-lg font-normal text-gray-400"> M noix</span></div>
+        <div class="text-xs text-gray-400 mt-1">{{ stats.estimations_cocotiers.densite_arbres_ha * 70 | int }} noix/ha/an</div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <div class="flex items-center gap-3 mb-2">
+            <div class="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
+                <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+            </div>
+            <span class="text-sm text-gray-500 font-medium">Valeur economique</span>
+        </div>
+        {% if conso and conso.synthese and conso.synthese.donnees_corrigees %}
+        {% set prix_reel = conso.sources.agreste_daaf.data.prix_noix_coco_eur_kg if conso.sources.agreste_daaf.status == 'ok' else 0.75 %}
+        <div class="text-3xl font-bold text-gray-900">~{{ "{:,.1f}".format(stats.estimations_cocotiers.production_noix_an * 0.75 / 1000000) }}<span class="text-lg font-normal text-gray-400"> M&euro;/an</span></div>
+        <div class="text-xs text-gray-400 mt-1">Prix producteur 0,75&euro;/noix <span class="badge-reel text-xs">DAAF</span></div>
+        {% else %}
+        <div class="text-3xl font-bold text-gray-900">~{{ "{:,.1f}".format(stats.estimations_cocotiers.valeur_estimee_eur_an / 1000000) }}<span class="text-lg font-normal text-gray-400"> M&euro;/an</span></div>
+        <div class="text-xs text-gray-400 mt-1">Prix producteur 0,25&euro;/noix <span class="badge-estime text-xs">Estime</span></div>
+        {% endif %}
+    </div>
+</section>
+
+<!-- Graphiques -->
+<section class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-10">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4">Occupation du sol</h2>
+        <div class="relative" style="height: 320px;">
+            <canvas id="doughnutChart"></canvas>
+        </div>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4">Surfaces par couverture (hectares)</h2>
+        <div class="relative" style="height: 320px;">
+            <canvas id="barChart"></canvas>
+        </div>
+    </div>
+</section>
+
+<!-- Carte -->
+<section class="mb-10">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <h2 class="text-lg font-semibold text-gray-800 mb-1">Carte des zones de cocotiers</h2>
+        <p class="text-sm text-gray-500 mb-4">Couches disponibles en haut a droite : Satellite RGB, Classification, Cocotiers</p>
+        <iframe src="/maps/carte_classification.html" class="w-full rounded-lg border border-gray-200" style="height: 520px;" loading="lazy"></iframe>
+        <p class="text-xs text-gray-400 mt-2 italic">Note : la carte interactive affiche toutes les classes y compris l'eau et l'ocean. Les graphiques et tableaux ci-dessus les excluent.</p>
+    </div>
+</section>
+
+<!-- A retenir -->
+<section class="mb-10">
+    <div class="bg-green-50 border-l-4 border-green-500 rounded-r-xl p-6">
+        <h2 class="text-lg font-semibold text-green-800 mb-3">A retenir</h2>
+        <ul class="space-y-2 text-green-900">
+            <li class="flex items-start gap-2">
+                <span class="text-green-500 mt-0.5">&#9654;</span>
+                <span>Pres de <strong>{{ "{:,.0f}".format(stats.estimations_cocotiers.surface_cocotiers_ha) }} hectares</strong> de zones a cocotiers identifies par satellite sur l'ensemble de la Guadeloupe.</span>
+            </li>
+            <li class="flex items-start gap-2">
+                <span class="text-green-500 mt-0.5">&#9654;</span>
+                <span>Un potentiel de production estime a <strong>~{{ "{:,.0f}".format(stats.estimations_cocotiers.production_noix_an / 1000000) }} millions de noix de coco par an</strong>.</span>
+            </li>
+            {% if conso and conso.synthese and conso.synthese.donnees_corrigees %}
+            <li class="flex items-start gap-2">
+                <span class="text-green-500 mt-0.5">&#9654;</span>
+                <span>Valeur economique potentielle de pres de <strong>~{{ "{:,.0f}".format(stats.estimations_cocotiers.production_noix_an * 0.75 / 1000000) }} millions d'euros annuels</strong> au prix producteur reel (0,75 &euro;/noix, source DAAF).</span>
+            </li>
+            <li class="flex items-start gap-2">
+                <span class="text-amber-500 mt-0.5">&#9654;</span>
+                <span>La SAA Agreste estime <strong>~{{ conso.synthese.surface_saa_ha | int }} ha</strong> en production reelle (~{{ "{:,.0f}".format(conso.synthese.production_saa_tonnes) }} t/an), soit un ratio de {{ conso.synthese.ratio_satellite_vs_saa }} avec la detection satellite. L'ecart s'explique par les cocotiers <strong>sauvages et la confusion spectrale</strong>.</span>
+            </li>
+            <li class="flex items-start gap-2">
+                <span class="text-green-500 mt-0.5">&#9654;</span>
+                <span>Radar Sentinel-1 confirme <strong>{{ conso.synthese.concordance_globale_pct }}%</strong> des zones detectees. {{ "{:,.0f}".format(conso.sources.cadastre_ign.data.total_parcelles_recuperees) }} parcelles cadastrales recensees sur {{ conso.sources.cadastre_ign.data.total_communes }} communes.</span>
+            </li>
+            {% else %}
+            <li class="flex items-start gap-2">
+                <span class="text-green-500 mt-0.5">&#9654;</span>
+                <span>Valeur economique de pres de <strong>~{{ "{:,.0f}".format(stats.estimations_cocotiers.valeur_estimee_eur_an / 1000000) }} millions d'euros annuels</strong> au prix producteur estime.</span>
+            </li>
+            {% endif %}
+            <li class="flex items-start gap-2">
+                <span class="text-green-500 mt-0.5">&#9654;</span>
+                <span>Analyse basee sur <strong>{{ metadata.get('images_used', 182) }} images satellite</strong> Sentinel-2 de l'annee 2024 (programme europeen Copernicus).</span>
+            </li>
+        </ul>
+    </div>
+</section>
+
+<!-- Methodologie simplifiee -->
+<section class="mb-10">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <h2 class="text-lg font-semibold text-gray-800 mb-6">Comment ca marche ?</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div class="text-center">
+                <div class="w-16 h-16 mx-auto mb-3 rounded-full bg-blue-100 flex items-center justify-center">
+                    <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+                <h3 class="font-semibold text-gray-800 mb-1">1. Satellite</h3>
+                <p class="text-sm text-gray-500">182 images Sentinel-2 captees en 2024 a 10m de resolution</p>
+            </div>
+            <div class="text-center">
+                <div class="w-16 h-16 mx-auto mb-3 rounded-full bg-purple-100 flex items-center justify-center">
+                    <svg class="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                    </svg>
+                </div>
+                <h3 class="font-semibold text-gray-800 mb-1">2. Analyse</h3>
+                <p class="text-sm text-gray-500">Algorithme de classification automatique des types de vegetation</p>
+            </div>
+            <div class="text-center">
+                <div class="w-16 h-16 mx-auto mb-3 rounded-full bg-green-100 flex items-center justify-center">
+                    <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/>
+                    </svg>
+                </div>
+                <h3 class="font-semibold text-gray-800 mb-1">3. Cartographie</h3>
+                <p class="text-sm text-gray-500">Identification et localisation des zones de cocotiers</p>
+            </div>
+            <div class="text-center">
+                <div class="w-16 h-16 mx-auto mb-3 rounded-full bg-amber-100 flex items-center justify-center">
+                    <svg class="w-8 h-8 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                </div>
+                <h3 class="font-semibold text-gray-800 mb-1">4. Resultats</h3>
+                <p class="text-sm text-gray-500">Estimations de surface, nombre d'arbres et potentiel economique</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    createDoughnutChart('doughnutChart', CLASSIFICATION);
+    createBarChart('barChart', CLASSIFICATION);
+});
+</script>
+{% endblock %}

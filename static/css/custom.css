@@ -1,0 +1,57 @@
+/* Onglets header */
+.tab-link {
+    transition: all 0.15s ease;
+}
+
+/* Iframe carte */
+iframe {
+    border: none;
+    display: block;
+}
+
+/* Badges type de donnee */
+.badge-reel {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 10px;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background-color: #DBEAFE;
+    color: #1E40AF;
+}
+.badge-calcule {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 10px;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background-color: #F3E8FF;
+    color: #6B21A8;
+}
+.badge-estime {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 10px;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background-color: #FEF3C7;
+    color: #92400E;
+}
+
+/* Animations KPI */
+@keyframes fadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+section:first-child > div {
+    animation: fadeUp 0.4s ease-out both;
+}
+section:first-child > div:nth-child(2) { animation-delay: 0.08s; }
+section:first-child > div:nth-child(3) { animation-delay: 0.16s; }
+section:first-child > div:nth-child(4) { animation-delay: 0.24s; }

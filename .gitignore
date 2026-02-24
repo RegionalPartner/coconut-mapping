@@ -1,0 +1,16 @@
+# Cle service account (CONFIDENTIEL)
+gen-lang-client-*.json
+
+# GeoTIFF volumineux (2 Go, regenerable)
+*.tif
+
+# Environnement Python
+venv/
+__pycache__/
+*.pyc
+
+# Donnees generees (regenerables via scripts)
+output_imagery/
+
+# Fichier de compilation temporaire
+PROJET_COMPLET.md
