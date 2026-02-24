@@ -9,6 +9,9 @@ venv/
 __pycache__/
 *.pyc
 
+# Donnees RPG GPKG (96 Mo, telechargeable sur data.geopf.fr)
+RPG_3-0__GPKG_RGAF09UTM20_R01_2024-01-01/
+
 # Donnees generees (regenerables via scripts)
 output_imagery/
 

@@ -37,6 +37,15 @@ def load_consolidation():
     return None
 
 
+def load_parcelles():
+    """Charge les donnees d'analyse parcellaire si disponibles."""
+    parc_file = DATA_DIR / 'parcelles_analysis.json'
+    if parc_file.exists():
+        with open(parc_file, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    return None
+
+
 @app.route('/')
 def index():
     return redirect(url_for('client'))
@@ -66,12 +75,29 @@ def donnees():
                            thresholds=THRESHOLDS, conso=conso, active='donnees')
 
 
+@app.route('/parcelles')
+def parcelles():
+    stats, metadata = load_data()
+    conso = load_consolidation()
+    parc = load_parcelles()
+    return render_template('parcelles.html', stats=stats, metadata=metadata,
+                           conso=conso, parc=parc, active='parcelles')
+
+
 @app.route('/consolidation')
 def consolidation():
     stats, metadata = load_data()
     conso = load_consolidation()
     return render_template('consolidation.html', stats=stats, metadata=metadata,
                            conso=conso, active='consolidation')
+
+
+@app.route('/api/parcelles')
+def api_parcelles():
+    parc = load_parcelles()
+    if parc:
+        return jsonify(parc)
+    return jsonify({'error': 'Analyse parcellaire non disponible'}), 404
 
 
 @app.route('/api/consolidation')

@@ -211,99 +211,87 @@ def fetch_sentinel1_radar(roi, classified):
 # ============================================================================
 
 def fetch_rpg(roi_bbox):
-    """Recupere les parcelles RPG via WFS geopf.fr."""
-    print("\n--- Source 2 : RPG ---")
+    """Charge les parcelles RPG depuis le GPKG local (telechargement IGN)."""
+    print("\n--- Source 2 : RPG (GPKG local) ---")
     try:
-        wfs_url = 'https://data.geopf.fr/wfs/ows'
+        import geopandas as gpd
 
-        # Essayer plusieurs noms de couches possibles
-        layer_names = [
-            'RPG.RPG_V2:parcelles_graphiques',
-            'RPG.RPG_V1:parcelles_graphiques',
-            'RPG:parcelles_graphiques',
-        ]
+        rpg_dir = (Path(__file__).parent
+                   / 'RPG_3-0__GPKG_RGAF09UTM20_R01_2024-01-01' / 'RPG'
+                   / '1_DONNEES_LIVRAISON_2024'
+                   / 'RPG_3-0__GPKG_RGAF09UTM20_R01_2024-01-01')
+        gpkg_path = rpg_dir / 'RPG_Parcelles.gpkg'
 
-        features = []
-        used_layer = None
-
-        for layer in layer_names:
-            try:
-                params = {
-                    'service': 'WFS',
-                    'version': '2.0.0',
-                    'request': 'GetFeature',
-                    'typeName': layer,
-                    'outputFormat': 'application/json',
-                    'srsName': 'EPSG:4326',
-                    'bbox': f'{roi_bbox[1]},{roi_bbox[0]},{roi_bbox[3]},{roi_bbox[2]},EPSG:4326',
-                    'count': 5000,
-                }
-                print(f"  Essai couche: {layer}")
-                resp = requests.get(wfs_url, params=params, timeout=60)
-                if resp.status_code == 200:
-                    data = resp.json()
-                    features = data.get('features', [])
-                    if features:
-                        used_layer = layer
-                        break
-            except Exception:
-                continue
-
-        if not features:
-            print("  WFS RPG: aucune parcelle trouvee (DOM peut-etre non couvert)")
+        if not gpkg_path.exists():
+            print(f"  GPKG non trouve: {gpkg_path}")
             return {
                 'status': 'indisponible',
-                'status_detail': 'WFS RPG non disponible pour la Guadeloupe',
+                'status_detail': 'Fichier RPG GPKG non trouve localement',
                 'date_fetch': datetime.now().isoformat(),
-                'data': {
-                    'source_url': wfs_url,
-                    'total_parcelles_agricoles': 0,
-                    'surface_cocotier_declaree_ha': 0,
-                    'note': 'Le RPG WFS ne couvre pas les DOM ou aucune parcelle retournee.',
-                },
+                'data': {'note': f'Fichier attendu: {gpkg_path}'},
                 'badge': 'Reel',
-                'interpretation': (
-                    'RPG non accessible via WFS pour la Guadeloupe. '
-                    'Selon la SAA Agreste 2022, ~430 ha en production (19 ha en exploitations declarees).'
-                ),
+                'interpretation': 'RPG GPKG non disponible. Telechargez-le depuis data.geopf.fr.',
             }
 
-        print(f"  {len(features)} parcelles recuperees (couche: {used_layer})")
+        parcelles = gpd.read_file(gpkg_path)
+        total = len(parcelles)
+        print(f"  {total} parcelles chargees ({parcelles.crs})")
 
-        # Analyse des parcelles
-        total_parcelles = len(features)
+        # Surface en ha (CRS UTM metrique)
+        parcelles['surface_ha'] = parcelles.geometry.area / 10000
+        surface_totale = round(float(parcelles['surface_ha'].sum()), 1)
 
-        # Chercher les cocotiers dans les attributs
-        coco_count = 0
-        for f in features:
-            props = f.get('properties', {})
-            culture = str(props.get('code_culture', props.get('CODE_CULTURE', ''))).upper()
-            libelle = str(props.get('libelle_culture', props.get('LIBELLE_CULTURE', ''))).upper()
-            if 'COC' in culture or 'COCO' in libelle or 'PALMIER' in libelle:
-                coco_count += 1
+        # Comptage par code culture
+        counts = parcelles['code_cultu'].value_counts().to_dict()
+        surfaces = parcelles.groupby('code_cultu')['surface_ha'].sum().to_dict()
+
+        # Cocotier (NOX = Noix, en Guadeloupe = cocotier)
+        nox = parcelles[parcelles['code_cultu'] == 'NOX']
+        nox_count = len(nox)
+        nox_ha = round(float(nox['surface_ha'].sum()), 1)
+
+        # Principales cultures
+        codes_principaux = {}
+        for code in ['NOX', 'JAC', 'SNE', 'PPH', 'CSA', 'BAN', 'PTR']:
+            if code in counts:
+                codes_principaux[code] = {
+                    'parcelles': int(counts[code]),
+                    'surface_ha': round(float(surfaces.get(code, 0)), 1),
+                }
+
+        print(f"  NOX (cocotier): {nox_count} parcelles, {nox_ha} ha")
+        print(f"  Surface totale RPG: {surface_totale} ha")
 
         return {
             'status': 'ok',
-            'status_detail': f'{total_parcelles} parcelles RPG recuperees',
+            'status_detail': f'{total} parcelles RPG chargees (GPKG local 2024)',
             'date_fetch': datetime.now().isoformat(),
             'data': {
-                'source_url': wfs_url,
-                'couche': used_layer,
-                'total_parcelles_agricoles': total_parcelles,
-                'parcelles_cocotier_declarees': coco_count,
-                'surface_cocotier_declaree_ha': round(coco_count * 1.6, 1),  # surface moyenne estimee
-                'note': 'Donnees parcellaires PAC',
+                'source': 'RPG GPKG 2024 (data.geopf.fr)',
+                'fichier': str(gpkg_path.name),
+                'crs': str(parcelles.crs),
+                'total_parcelles_agricoles': total,
+                'surface_totale_ha': surface_totale,
+                'parcelles_cocotier_declarees': nox_count,
+                'surface_cocotier_declaree_ha': nox_ha,
+                'codes_principaux': codes_principaux,
+                'note': (
+                    f'NOX = Noix (cocotier en Guadeloupe). '
+                    f'{nox_count} parcelles / {nox_ha} ha declares. '
+                    f'Coherent avec DAAF 2020 (19 ha en exploitations).'
+                ),
             },
             'badge': 'Reel',
             'interpretation': (
-                f'{total_parcelles} parcelles agricoles trouvees. '
-                f'{coco_count} declarees en cocotier.'
+                f'{total} parcelles agricoles RPG 2024 (GPKG local). '
+                f'{nox_count} parcelles declarees cocotier (NOX), {nox_ha} ha. '
+                f'Surface totale RPG: {surface_totale} ha.'
             ),
         }
 
-    except requests.exceptions.RequestException as e:
-        print(f"  ERREUR reseau: {e}")
-        return _error_result('rpg', f'Erreur reseau: {e}', 'Reel')
+    except ImportError:
+        print("  ERREUR: geopandas non installe")
+        return _error_result('rpg', 'geopandas non installe (pip install geopandas)', 'Reel')
     except Exception as e:
         print(f"  ERREUR: {e}")
         return _error_result('rpg', str(e), 'Reel')
@@ -530,7 +518,9 @@ def compute_synthese(sources, satellite_ha):
     scores = []
     if sources.get('sentinel1_radar', {}).get('status') == 'ok':
         scores.append(radar_pct / 100)
-    if sources.get('rpg', {}).get('status') in ('ok', 'indisponible'):
+    if sources.get('rpg', {}).get('status') == 'ok':
+        scores.append(0.8)
+    elif sources.get('rpg', {}).get('status') == 'indisponible':
         scores.append(0.5)
     if sources.get('oso_theia', {}).get('status') in ('ok', 'partiel'):
         scores.append(0.6)

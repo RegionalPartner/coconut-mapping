@@ -1,0 +1,568 @@
+{% extends "base.html" %}
+{% block title %}Parcelles{% endblock %}
+
+{% block content %}
+
+{% if not parc %}
+<!-- Pas de donnees parcellaires -->
+<section class="mb-6">
+    <div class="bg-amber-50 border-l-4 border-amber-400 rounded-r-xl p-6">
+        <h2 class="text-lg font-semibold text-amber-800 mb-2">Analyse parcellaire non disponible</h2>
+        <p class="text-sm text-amber-900">
+            Executez <code class="bg-amber-100 px-2 py-0.5 rounded font-mono">python analyze_parcels.py</code>
+            pour analyser les parcelles RPG et identifier le potentiel cocotier.
+        </p>
+        <p class="text-xs text-amber-700 mt-2">
+            Sources : RPG GPKG 2024 + Classification Sentinel-2
+        </p>
+    </div>
+</section>
+
+{% else %}
+{% set vol = parc.volumes %}
+{% set params = parc.parametres %}
+
+<!-- Section 1 : KPIs -->
+<section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <div class="flex items-center gap-3 mb-2">
+            <div class="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
+                <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/>
+                </svg>
+            </div>
+            <span class="text-sm text-gray-500 font-medium">Parcelles a potentiel</span>
+        </div>
+        <div class="text-3xl font-bold text-gray-900">
+            {{ (vol.potentiel_eleve.parcelles + vol.potentiel_moyen.parcelles) | int }}
+        </div>
+        <div class="text-xs text-gray-400 mt-1">
+            <span class="badge-reel">Reel</span> eleve + moyen (RPG 2024)
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <div class="flex items-center gap-3 mb-2">
+            <div class="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center">
+                <svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/>
+                </svg>
+            </div>
+            <span class="text-sm text-gray-500 font-medium">Surface brute disponible</span>
+        </div>
+        <div class="text-3xl font-bold text-gray-900">
+            {{ "{:,.0f}".format(vol.total_disponible.surface_brute_ha) }} ha
+        </div>
+        <div class="text-xs text-gray-400 mt-1">
+            <span class="badge-reel">Reel</span> eleve + moyen + faible
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <div class="flex items-center gap-3 mb-2">
+            <div class="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center">
+                <svg class="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                </svg>
+            </div>
+            <span class="text-sm text-gray-500 font-medium">Surface plantable realiste</span>
+        </div>
+        <div class="text-3xl font-bold text-amber-600">
+            {{ "{:,.0f}".format(vol.total_disponible.surface_realiste_ha) }} ha
+        </div>
+        <div class="text-xs text-gray-400 mt-1">
+            <span class="badge-estime">Estime</span> {{ (params.taux_plantation_realiste * 100) | int }}% de la surface brute
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <div class="flex items-center gap-3 mb-2">
+            <div class="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
+                <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+            </div>
+            <span class="text-sm text-gray-500 font-medium">Valeur potentielle</span>
+        </div>
+        <div class="text-3xl font-bold text-blue-600">
+            {{ "{:,.0f}".format(vol.total_disponible.valeur_eur_an) }} EUR
+        </div>
+        <div class="text-xs text-gray-400 mt-1">
+            <span class="badge-estime">Estime</span> /an a maturite ({{ params.delai_maturite_ans }} ans)
+        </div>
+    </div>
+</section>
+
+<!-- Section 2 : Carte interactive -->
+<section class="mb-8">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4">Carte des parcelles par potentiel cocotier</h2>
+        <div class="rounded-lg overflow-hidden border border-gray-200" style="height:550px;">
+            <iframe src="/maps/carte_parcelles.html" width="100%" height="100%" frameborder="0"></iframe>
+        </div>
+        <p class="text-xs text-gray-400 mt-2">
+            Cliquez sur les couches pour filtrer. Survolez une parcelle pour voir son score.
+            "Non adapte" est masque par defaut.
+        </p>
+    </div>
+</section>
+
+<!-- Section 3 : Repartition par categorie -->
+<section class="mb-8">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4">Repartition par categorie de potentiel</h2>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="border-b border-gray-200">
+                        <th class="text-left py-2 pr-4 text-gray-500 font-medium">Categorie</th>
+                        <th class="text-right py-2 pr-4 text-gray-500 font-medium">Parcelles</th>
+                        <th class="text-right py-2 pr-4 text-gray-500 font-medium">Surface brute (ha)</th>
+                        <th class="text-right py-2 pr-4 text-gray-500 font-medium">Surface realiste (ha)</th>
+                        <th class="text-right py-2 pr-4 text-gray-500 font-medium">Valeur EUR/an</th>
+                        <th class="text-center py-2 text-gray-500 font-medium w-28">Type</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    <tr class="bg-blue-50">
+                        <td class="py-2.5 pr-4">
+                            <span class="inline-block w-3 h-3 rounded-sm mr-2" style="background:#2196F3"></span>
+                            <span class="font-medium text-gray-700">Cocotier existant</span>
+                        </td>
+                        <td class="py-2.5 pr-4 text-right font-mono">{{ vol.existant.parcelles }}</td>
+                        <td class="py-2.5 pr-4 text-right font-mono">{{ vol.existant.surface_ha }}</td>
+                        <td class="py-2.5 pr-4 text-right font-mono text-gray-400">--</td>
+                        <td class="py-2.5 pr-4 text-right font-mono text-gray-400">--</td>
+                        <td class="py-2.5 text-center"><span class="badge-reel">Reel</span></td>
+                    </tr>
+                    <tr class="bg-green-50">
+                        <td class="py-2.5 pr-4">
+                            <span class="inline-block w-3 h-3 rounded-sm mr-2" style="background:#4CAF50"></span>
+                            <span class="font-medium text-gray-700">Potentiel eleve</span>
+                            <span class="text-xs text-gray-400 ml-1">(score &ge; 70)</span>
+                        </td>
+                        <td class="py-2.5 pr-4 text-right font-mono">{{ vol.potentiel_eleve.parcelles }}</td>
+                        <td class="py-2.5 pr-4 text-right font-mono">{{ "{:,.1f}".format(vol.potentiel_eleve.surface_brute_ha) }}</td>
+                        <td class="py-2.5 pr-4 text-right font-mono">{{ "{:,.1f}".format(vol.potentiel_eleve.surface_realiste_ha) }}</td>
+                        <td class="py-2.5 pr-4 text-right font-mono">{{ "{:,.0f}".format(vol.potentiel_eleve.valeur_eur_an) }}</td>
+                        <td class="py-2.5 text-center"><span class="badge-calcule">Calcule</span></td>
+                    </tr>
+                    <tr>
+                        <td class="py-2.5 pr-4">
+                            <span class="inline-block w-3 h-3 rounded-sm mr-2" style="background:#FFC107"></span>
+                            <span class="font-medium text-gray-700">Potentiel moyen</span>
+                            <span class="text-xs text-gray-400 ml-1">(score 45-69)</span>
+                        </td>
+                        <td class="py-2.5 pr-4 text-right font-mono">{{ vol.potentiel_moyen.parcelles }}</td>
+                        <td class="py-2.5 pr-4 text-right font-mono">{{ "{:,.1f}".format(vol.potentiel_moyen.surface_brute_ha) }}</td>
+                        <td class="py-2.5 pr-4 text-right font-mono">{{ "{:,.1f}".format(vol.potentiel_moyen.surface_realiste_ha) }}</td>
+                        <td class="py-2.5 pr-4 text-right font-mono">{{ "{:,.0f}".format(vol.potentiel_moyen.valeur_eur_an) }}</td>
+                        <td class="py-2.5 text-center"><span class="badge-estime">Estime</span></td>
+                    </tr>
+                    <tr>
+                        <td class="py-2.5 pr-4">
+                            <span class="inline-block w-3 h-3 rounded-sm mr-2" style="background:#FF9800"></span>
+                            <span class="font-medium text-gray-700">Potentiel faible</span>
+                            <span class="text-xs text-gray-400 ml-1">(score 20-44)</span>
+                        </td>
+                        <td class="py-2.5 pr-4 text-right font-mono">{{ vol.potentiel_faible.parcelles }}</td>
+                        <td class="py-2.5 pr-4 text-right font-mono">{{ "{:,.1f}".format(vol.potentiel_faible.surface_brute_ha) }}</td>
+                        <td class="py-2.5 pr-4 text-right font-mono">{{ "{:,.1f}".format(vol.potentiel_faible.surface_realiste_ha) }}</td>
+                        <td class="py-2.5 pr-4 text-right font-mono">{{ "{:,.0f}".format(vol.potentiel_faible.valeur_eur_an) }}</td>
+                        <td class="py-2.5 text-center"><span class="badge-estime">Estime</span></td>
+                    </tr>
+                    <tr class="bg-gray-50">
+                        <td class="py-2.5 pr-4">
+                            <span class="inline-block w-3 h-3 rounded-sm mr-2" style="background:#9E9E9E"></span>
+                            <span class="font-medium text-gray-700">Non adapte</span>
+                            <span class="text-xs text-gray-400 ml-1">(score &lt; 20)</span>
+                        </td>
+                        <td class="py-2.5 pr-4 text-right font-mono">{{ vol.non_adapte.parcelles }}</td>
+                        <td class="py-2.5 pr-4 text-right font-mono">{{ "{:,.1f}".format(vol.non_adapte.surface_ha) }}</td>
+                        <td class="py-2.5 pr-4 text-right font-mono text-gray-400">--</td>
+                        <td class="py-2.5 pr-4 text-right font-mono text-gray-400">--</td>
+                        <td class="py-2.5 text-center"><span class="text-xs text-gray-400">--</span></td>
+                    </tr>
+                    <tr class="border-t-2 border-gray-300 font-semibold">
+                        <td class="py-2.5 pr-4 text-gray-800">Total disponible</td>
+                        <td class="py-2.5 pr-4 text-right font-mono">
+                            {{ (vol.potentiel_eleve.parcelles + vol.potentiel_moyen.parcelles + vol.potentiel_faible.parcelles) | int }}
+                        </td>
+                        <td class="py-2.5 pr-4 text-right font-mono">{{ "{:,.1f}".format(vol.total_disponible.surface_brute_ha) }}</td>
+                        <td class="py-2.5 pr-4 text-right font-mono text-amber-600">{{ "{:,.1f}".format(vol.total_disponible.surface_realiste_ha) }}</td>
+                        <td class="py-2.5 pr-4 text-right font-mono text-blue-600">{{ "{:,.0f}".format(vol.total_disponible.valeur_eur_an) }}</td>
+                        <td class="py-2.5 text-center"><span class="badge-estime">Estime</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+
+<!-- Section 4 : Chaine d'estimation de volume -->
+<section class="mb-8">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4">Chaine d'estimation des volumes</h2>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="border-b border-gray-200">
+                        <th class="text-left py-2 pr-4 text-gray-500 font-medium">Etape</th>
+                        <th class="text-right py-2 pr-4 text-gray-500 font-medium">Valeur</th>
+                        <th class="text-left py-2 pr-4 text-gray-500 font-medium">Calcul</th>
+                        <th class="text-center py-2 text-gray-500 font-medium w-28">Type</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    <tr>
+                        <td class="py-2.5 pr-4 text-gray-700">Surface brute disponible</td>
+                        <td class="py-2.5 pr-4 text-right font-mono font-medium">{{ "{:,.1f}".format(vol.total_disponible.surface_brute_ha) }} ha</td>
+                        <td class="py-2.5 pr-4 text-gray-500 text-xs">Somme des parcelles RPG (eleve + moyen + faible)</td>
+                        <td class="py-2.5 text-center"><span class="badge-reel">Reel</span></td>
+                    </tr>
+                    <tr>
+                        <td class="py-2.5 pr-4 text-gray-700">Taux de plantation realiste</td>
+                        <td class="py-2.5 pr-4 text-right font-mono font-medium">{{ (params.taux_plantation_realiste * 100) | int }}%</td>
+                        <td class="py-2.5 pr-4 text-gray-500 text-xs">Hypothese conservatrice (contraintes terrain, accessibilite)</td>
+                        <td class="py-2.5 text-center"><span class="badge-estime">Estime</span></td>
+                    </tr>
+                    <tr class="bg-amber-50">
+                        <td class="py-2.5 pr-4 text-gray-700 font-medium">Surface plantable</td>
+                        <td class="py-2.5 pr-4 text-right font-mono font-bold text-amber-600">{{ "{:,.1f}".format(vol.total_disponible.surface_realiste_ha) }} ha</td>
+                        <td class="py-2.5 pr-4 text-gray-500 text-xs">{{ "{:,.1f}".format(vol.total_disponible.surface_brute_ha) }} x {{ (params.taux_plantation_realiste * 100) | int }}%</td>
+                        <td class="py-2.5 text-center"><span class="badge-estime">Estime</span></td>
+                    </tr>
+                    <tr>
+                        <td class="py-2.5 pr-4 text-gray-700">Densite cocotier</td>
+                        <td class="py-2.5 pr-4 text-right font-mono font-medium">{{ params.densite_cocotier_ha }} arbres/ha</td>
+                        <td class="py-2.5 pr-4 text-gray-500 text-xs">Espacement 8x8m standard</td>
+                        <td class="py-2.5 text-center"><span class="badge-estime">Estime</span></td>
+                    </tr>
+                    <tr>
+                        <td class="py-2.5 pr-4 text-gray-700">Arbres potentiels</td>
+                        <td class="py-2.5 pr-4 text-right font-mono font-medium">{{ "{:,}".format(vol.total_disponible.arbres_potentiels) }}</td>
+                        <td class="py-2.5 pr-4 text-gray-500 text-xs">{{ "{:,.1f}".format(vol.total_disponible.surface_realiste_ha) }} ha x {{ params.densite_cocotier_ha }} arbres/ha</td>
+                        <td class="py-2.5 text-center"><span class="badge-calcule">Calcule</span></td>
+                    </tr>
+                    <tr>
+                        <td class="py-2.5 pr-4 text-gray-700">Rendement par arbre</td>
+                        <td class="py-2.5 pr-4 text-right font-mono font-medium">{{ params.noix_par_arbre_an }} noix/arbre/an</td>
+                        <td class="py-2.5 pr-4 text-gray-500 text-xs">A maturite ({{ params.delai_maturite_ans }} ans)</td>
+                        <td class="py-2.5 text-center"><span class="badge-estime">Estime</span></td>
+                    </tr>
+                    <tr>
+                        <td class="py-2.5 pr-4 text-gray-700">Production noix/an</td>
+                        <td class="py-2.5 pr-4 text-right font-mono font-medium">{{ "{:,}".format(vol.total_disponible.production_noix_an) }}</td>
+                        <td class="py-2.5 pr-4 text-gray-500 text-xs">{{ "{:,}".format(vol.total_disponible.arbres_potentiels) }} arbres x {{ params.noix_par_arbre_an }} noix</td>
+                        <td class="py-2.5 text-center"><span class="badge-calcule">Calcule</span></td>
+                    </tr>
+                    <tr>
+                        <td class="py-2.5 pr-4 text-gray-700">Production tonnes/an</td>
+                        <td class="py-2.5 pr-4 text-right font-mono font-medium">{{ "{:,.1f}".format(vol.total_disponible.production_tonnes_an) }} t</td>
+                        <td class="py-2.5 pr-4 text-gray-500 text-xs">{{ params.poids_noix_kg }} kg/noix</td>
+                        <td class="py-2.5 text-center"><span class="badge-calcule">Calcule</span></td>
+                    </tr>
+                    <tr>
+                        <td class="py-2.5 pr-4 text-gray-700">Prix unitaire</td>
+                        <td class="py-2.5 pr-4 text-right font-mono font-medium">{{ params.prix_noix_eur }} EUR/noix</td>
+                        <td class="py-2.5 pr-4 text-gray-500 text-xs">DAAF Guadeloupe 2020</td>
+                        <td class="py-2.5 text-center"><span class="badge-reel">Reel</span></td>
+                    </tr>
+                    <tr class="bg-blue-50">
+                        <td class="py-2.5 pr-4 text-gray-700 font-semibold">Valeur potentielle / an</td>
+                        <td class="py-2.5 pr-4 text-right font-mono font-bold text-blue-600">{{ "{:,.0f}".format(vol.total_disponible.valeur_eur_an) }} EUR</td>
+                        <td class="py-2.5 pr-4 text-gray-500 text-xs">A maturite ({{ params.delai_maturite_ans }} ans apres plantation)</td>
+                        <td class="py-2.5 text-center"><span class="badge-estime">Estime</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+
+<!-- Section 5 : Top 20 parcelles -->
+<section class="mb-8">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4">Top 20 parcelles par score de potentiel</h2>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="border-b border-gray-200">
+                        <th class="text-left py-2 pr-3 text-gray-500 font-medium w-8">#</th>
+                        <th class="text-left py-2 pr-3 text-gray-500 font-medium">ID Parcelle</th>
+                        <th class="text-center py-2 pr-3 text-gray-500 font-medium">Culture</th>
+                        <th class="text-right py-2 pr-3 text-gray-500 font-medium">Surface (ha)</th>
+                        <th class="text-right py-2 pr-3 text-gray-500 font-medium">Score</th>
+                        <th class="text-center py-2 pr-3 text-gray-500 font-medium">NDVI</th>
+                        <th class="text-center py-2 pr-3 text-gray-500 font-medium">EVI</th>
+                        <th class="text-center py-2 text-gray-500 font-medium">Bio</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    {% for p in parc.top_parcelles[:20] %}
+                    <tr class="{{ 'bg-green-50' if p.score_potentiel >= 70 else '' }}">
+                        <td class="py-2 pr-3 text-gray-400 text-xs">{{ loop.index }}</td>
+                        <td class="py-2 pr-3 font-mono text-xs text-gray-700">{{ p.id_parcel }}</td>
+                        <td class="py-2 pr-3 text-center">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                                {{ p.code_culture }}
+                            </span>
+                        </td>
+                        <td class="py-2 pr-3 text-right font-mono">{{ p.surface_ha }}</td>
+                        <td class="py-2 pr-3 text-right">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold
+                                {{ 'bg-green-100 text-green-800' if p.score_potentiel >= 70 else 'bg-amber-100 text-amber-800' }}">
+                                {{ p.score_potentiel }}
+                            </span>
+                        </td>
+                        <td class="py-2 pr-3 text-center font-mono text-xs">{{ p.ndvi_mean if p.ndvi_mean is not none else '--' }}</td>
+                        <td class="py-2 pr-3 text-center font-mono text-xs">{{ p.evi_mean if p.evi_mean is not none else '--' }}</td>
+                        <td class="py-2 text-center">
+                            {% if p.is_bio %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-lime-100 text-lime-800">Bio</span>
+                            {% else %}
+                            <span class="text-xs text-gray-300">--</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if parc.top_parcelles | length > 20 %}
+        <p class="text-xs text-gray-400 mt-2">{{ parc.top_parcelles | length }} parcelles au total dans le classement. API: <code>/api/parcelles</code></p>
+        {% endif %}
+    </div>
+</section>
+
+<!-- Section 6 : Repartition par zone geographique -->
+<section class="mb-8">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4">Repartition par zone geographique</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {% for zone in parc.par_zone %}
+            <div class="bg-gray-50 rounded-lg p-4">
+                <h3 class="text-sm font-semibold text-gray-800 mb-2">{{ zone.nom }}</h3>
+                <div class="space-y-1.5">
+                    <div class="flex justify-between text-xs">
+                        <span class="text-gray-500">Total parcelles</span>
+                        <span class="font-mono font-medium">{{ zone.total_parcelles }}</span>
+                    </div>
+                    <div class="flex justify-between text-xs">
+                        <span class="text-gray-500">Cocotier existant</span>
+                        <span class="font-mono font-medium text-blue-600">{{ zone.parcelles_cocotier_existant }} ({{ zone.surface_cocotier_ha }} ha)</span>
+                    </div>
+                    <div class="flex justify-between text-xs">
+                        <span class="text-gray-500">Parcelles a potentiel</span>
+                        <span class="font-mono font-medium text-green-600">{{ zone.parcelles_potentiel }}</span>
+                    </div>
+                    <div class="flex justify-between text-xs">
+                        <span class="text-gray-500">Surface dispo</span>
+                        <span class="font-mono font-bold">{{ zone.surface_dispo_ha }} ha</span>
+                    </div>
+                    <div class="flex justify-between text-xs">
+                        <span class="text-gray-500">dont potentiel eleve</span>
+                        <span class="font-mono text-green-600">{{ zone.surface_potentiel_eleve_ha }} ha</span>
+                    </div>
+                    <div class="flex justify-between text-xs">
+                        <span class="text-gray-500">Score moyen</span>
+                        <span class="font-mono">{{ zone.score_moyen }}</span>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<!-- Section 7 : Repartition par culture (bar chart) -->
+<section class="mb-8">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4">Repartition par code culture RPG</h2>
+        <div style="max-height:400px;">
+            <canvas id="cultureChart"></canvas>
+        </div>
+        <div class="overflow-x-auto mt-4">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="border-b border-gray-200">
+                        <th class="text-left py-2 pr-4 text-gray-500 font-medium">Code</th>
+                        <th class="text-right py-2 pr-4 text-gray-500 font-medium">Parcelles</th>
+                        <th class="text-right py-2 pr-4 text-gray-500 font-medium">Surface (ha)</th>
+                        <th class="text-right py-2 text-gray-500 font-medium">Score moyen</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    {% for c in parc.par_code_culture[:15] %}
+                    <tr>
+                        <td class="py-2 pr-4 font-mono font-medium text-gray-700">{{ c.code }}</td>
+                        <td class="py-2 pr-4 text-right font-mono">{{ c.parcelles }}</td>
+                        <td class="py-2 pr-4 text-right font-mono">{{ "{:,.1f}".format(c.surface_ha) }}</td>
+                        <td class="py-2 text-right">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
+                                {{ 'bg-green-100 text-green-800' if c.score_moyen >= 70 else ('bg-amber-100 text-amber-800' if c.score_moyen >= 45 else 'bg-gray-100 text-gray-600') }}">
+                                {{ c.score_moyen }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+
+<!-- Section 8 : Methodologie -->
+<section class="mb-8">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4">Methodologie du scoring</h2>
+
+        <p class="text-sm text-gray-600 mb-4">
+            Chaque parcelle RPG recoit un score composite (0-100) base sur 5 composantes ponderees.
+            Les parcelles declarees cocotier (code NOX) sont classees a part.
+        </p>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="border-b border-gray-200">
+                        <th class="text-left py-2 pr-4 text-gray-500 font-medium">Composante</th>
+                        <th class="text-center py-2 pr-4 text-gray-500 font-medium">Poids</th>
+                        <th class="text-left py-2 pr-4 text-gray-500 font-medium">Score 100</th>
+                        <th class="text-left py-2 pr-4 text-gray-500 font-medium">Score 60</th>
+                        <th class="text-left py-2 text-gray-500 font-medium">Score 0</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    <tr>
+                        <td class="py-2.5 pr-4 font-medium text-gray-700">Usage actuel</td>
+                        <td class="py-2.5 pr-4 text-center font-mono">{{ (parc.poids_scoring.usage_actuel * 100) | int }}%</td>
+                        <td class="py-2.5 pr-4 text-xs text-gray-500">Jachere (JAC), Non exploite (SNE)</td>
+                        <td class="py-2.5 pr-4 text-xs text-gray-500">Paturages (PPH, PTR)</td>
+                        <td class="py-2.5 text-xs text-gray-500">Banane, foret, urbain</td>
+                    </tr>
+                    <tr>
+                        <td class="py-2.5 pr-4 font-medium text-gray-700">Signature satellite</td>
+                        <td class="py-2.5 pr-4 text-center font-mono">{{ (parc.poids_scoring.satellite * 100) | int }}%</td>
+                        <td class="py-2.5 pr-4 text-xs text-gray-500">NDVI 0.40-0.55, EVI 0.25-0.70</td>
+                        <td class="py-2.5 pr-4 text-xs text-gray-500">NDVI 0.30-0.40</td>
+                        <td class="py-2.5 text-xs text-gray-500">NDVI &lt; 0.15</td>
+                    </tr>
+                    <tr>
+                        <td class="py-2.5 pr-4 font-medium text-gray-700">Terrain (pente ZDH)</td>
+                        <td class="py-2.5 pr-4 text-center font-mono">{{ (parc.poids_scoring.terrain * 100) | int }}%</td>
+                        <td class="py-2.5 pr-4 text-xs text-gray-500">&lt; 10% (plat)</td>
+                        <td class="py-2.5 pr-4 text-xs text-gray-500">10-30%</td>
+                        <td class="py-2.5 text-xs text-gray-500">&gt; 80%</td>
+                    </tr>
+                    <tr>
+                        <td class="py-2.5 pr-4 font-medium text-gray-700">Taille parcelle</td>
+                        <td class="py-2.5 pr-4 text-center font-mono">{{ (parc.poids_scoring.taille * 100) | int }}%</td>
+                        <td class="py-2.5 pr-4 text-xs text-gray-500">&gt; 5 ha</td>
+                        <td class="py-2.5 pr-4 text-xs text-gray-500">2-5 ha</td>
+                        <td class="py-2.5 text-xs text-gray-500">&lt; 0.1 ha</td>
+                    </tr>
+                    <tr>
+                        <td class="py-2.5 pr-4 font-medium text-gray-700">Agriculture bio</td>
+                        <td class="py-2.5 pr-4 text-center font-mono">{{ (parc.poids_scoring.bio * 100) | int }}%</td>
+                        <td class="py-2.5 pr-4 text-xs text-gray-500">Oui</td>
+                        <td class="py-2.5 pr-4 text-xs text-gray-500">--</td>
+                        <td class="py-2.5 text-xs text-gray-500">Non</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="mt-4 grid grid-cols-2 sm:grid-cols-5 gap-2">
+            <div class="bg-blue-50 rounded-lg p-3 text-center">
+                <div class="text-xs text-gray-500">Cocotier existant</div>
+                <div class="text-sm font-bold text-blue-600">Code NOX</div>
+            </div>
+            <div class="bg-green-50 rounded-lg p-3 text-center">
+                <div class="text-xs text-gray-500">Potentiel eleve</div>
+                <div class="text-sm font-bold text-green-600">&ge; 70</div>
+            </div>
+            <div class="bg-amber-50 rounded-lg p-3 text-center">
+                <div class="text-xs text-gray-500">Potentiel moyen</div>
+                <div class="text-sm font-bold text-amber-600">45 - 69</div>
+            </div>
+            <div class="bg-orange-50 rounded-lg p-3 text-center">
+                <div class="text-xs text-gray-500">Potentiel faible</div>
+                <div class="text-sm font-bold text-orange-600">20 - 44</div>
+            </div>
+            <div class="bg-gray-50 rounded-lg p-3 text-center">
+                <div class="text-xs text-gray-500">Non adapte</div>
+                <div class="text-sm font-bold text-gray-500">&lt; 20</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Section 9 : Metadonnees -->
+<section class="mb-6">
+    <div class="bg-gray-50 rounded-xl border border-gray-200 p-4 text-xs text-gray-500 flex flex-wrap gap-x-4 gap-y-1">
+        <span>Analyse : {{ parc.date_analyse[:19] }}</span>
+        <span>|</span>
+        <span>Source : {{ parc.source }}</span>
+        <span>|</span>
+        <span>{{ parc.total_parcelles_rpg }} parcelles analysees</span>
+        <span>|</span>
+        <span>Surface totale RPG : {{ "{:,.1f}".format(parc.surface_totale_rpg_ha) }} ha</span>
+    </div>
+</section>
+
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    {% if parc %}
+    // Bar chart repartition par culture
+    const cultureData = {{ parc.par_code_culture | tojson }};
+    const top10 = cultureData.slice(0, 10);
+
+    const ctx = document.getElementById('cultureChart');
+    if (ctx) {
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: top10.map(c => c.code),
+                datasets: [{
+                    label: 'Surface (ha)',
+                    data: top10.map(c => c.surface_ha),
+                    backgroundColor: top10.map(c =>
+                        c.score_moyen >= 70 ? '#4CAF50' :
+                        c.score_moyen >= 45 ? '#FFC107' :
+                        c.score_moyen >= 20 ? '#FF9800' : '#9E9E9E'
+                    ),
+                    borderRadius: 4,
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: (ctx) => {
+                                const c = top10[ctx.dataIndex];
+                                return `${c.surface_ha} ha (${c.parcelles} parcelles, score: ${c.score_moyen})`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: { title: { display: true, text: 'Surface (ha)' } },
+                    y: { title: { display: false } }
+                }
+            }
+        });
+    }
+    {% endif %}
+});
+</script>
+{% endblock %}
