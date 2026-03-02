@@ -96,7 +96,16 @@
 <!-- Section 2 : Carte interactive -->
 <section class="mb-8">
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-        <h2 class="text-lg font-semibold text-gray-800 mb-4">Carte des parcelles par potentiel cocotier</h2>
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold text-gray-800">Carte des parcelles par potentiel cocotier</h2>
+            <a href="/maps/carte_parcelles.html" target="_blank"
+               class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
+                </svg>
+                Plein ecran
+            </a>
+        </div>
         <div class="rounded-lg overflow-hidden border border-gray-200" style="height:550px;">
             <iframe src="/maps/carte_parcelles.html" width="100%" height="100%" frameborder="0"></iframe>
         </div>
@@ -127,7 +136,7 @@
                     <tr class="bg-blue-50">
                         <td class="py-2.5 pr-4">
                             <span class="inline-block w-3 h-3 rounded-sm mr-2" style="background:#2196F3"></span>
-                            <span class="font-medium text-gray-700">Cocotier existant</span>
+                            <span class="font-medium text-gray-700">Cocotiers existants</span>
                         </td>
                         <td class="py-2.5 pr-4 text-right font-mono">{{ vol.existant.parcelles }}</td>
                         <td class="py-2.5 pr-4 text-right font-mono">{{ vol.existant.surface_ha }}</td>
@@ -280,46 +289,62 @@
     </div>
 </section>
 
-<!-- Section 5 : Top 20 parcelles -->
+<!-- Section 5 : Top 100 parcelles -->
 <section class="mb-8">
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-        <h2 class="text-lg font-semibold text-gray-800 mb-4">Top 20 parcelles par score de potentiel</h2>
-        <div class="overflow-x-auto">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4">Top 100 parcelles par score de potentiel</h2>
+        <div class="overflow-x-auto" style="max-height:600px;overflow-y:auto;">
             <table class="w-full text-sm">
-                <thead>
+                <thead class="sticky top-0 bg-white z-10">
                     <tr class="border-b border-gray-200">
-                        <th class="text-left py-2 pr-3 text-gray-500 font-medium w-8">#</th>
-                        <th class="text-left py-2 pr-3 text-gray-500 font-medium">ID Parcelle</th>
-                        <th class="text-center py-2 pr-3 text-gray-500 font-medium">Culture</th>
-                        <th class="text-right py-2 pr-3 text-gray-500 font-medium">Surface (ha)</th>
-                        <th class="text-right py-2 pr-3 text-gray-500 font-medium">Score</th>
-                        <th class="text-center py-2 pr-3 text-gray-500 font-medium">NDVI</th>
-                        <th class="text-center py-2 pr-3 text-gray-500 font-medium">EVI</th>
-                        <th class="text-center py-2 text-gray-500 font-medium">Bio</th>
+                        <th class="text-left py-2 pr-2 text-gray-500 font-medium w-8">#</th>
+                        <th class="text-left py-2 pr-2 text-gray-500 font-medium">ID Parcelle</th>
+                        <th class="text-left py-2 pr-2 text-gray-500 font-medium">Ref. cadastrale</th>
+                        <th class="text-left py-2 pr-2 text-gray-500 font-medium">Commune</th>
+                        <th class="text-left py-2 pr-2 text-gray-500 font-medium">Lieu-dit</th>
+                        <th class="text-center py-2 pr-2 text-gray-500 font-medium">Culture</th>
+                        <th class="text-right py-2 pr-2 text-gray-500 font-medium">Surface</th>
+                        <th class="text-right py-2 pr-2 text-gray-500 font-medium">Score</th>
+                        <th class="text-left py-2 pr-2 text-gray-500 font-medium">Proprietaire</th>
+                        <th class="text-center py-2 text-gray-500 font-medium">GPS</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100">
-                    {% for p in parc.top_parcelles[:20] %}
+                    {% for p in parc.top_parcelles[:100] %}
                     <tr class="{{ 'bg-green-50' if p.score_potentiel >= 70 else '' }}">
-                        <td class="py-2 pr-3 text-gray-400 text-xs">{{ loop.index }}</td>
-                        <td class="py-2 pr-3 font-mono text-xs text-gray-700">{{ p.id_parcel }}</td>
-                        <td class="py-2 pr-3 text-center">
+                        <td class="py-2 pr-2 text-gray-400 text-xs">{{ loop.index }}</td>
+                        <td class="py-2 pr-2 font-mono text-xs text-gray-700">{{ p.id_parcel }}</td>
+                        <td class="py-2 pr-2 font-mono text-xs text-gray-500">{{ p.id_cadastre if p.id_cadastre else '--' }}</td>
+                        <td class="py-2 pr-2 text-xs text-gray-600">{{ p.commune if p.commune else '--' }}</td>
+                        <td class="py-2 pr-2 text-xs text-gray-500" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ p.lieu_dit if p.lieu_dit else '' }}">{{ p.lieu_dit if p.lieu_dit else '--' }}</td>
+                        <td class="py-2 pr-2 text-center">
                             <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
                                 {{ p.code_culture }}
                             </span>
                         </td>
-                        <td class="py-2 pr-3 text-right font-mono">{{ p.surface_ha }}</td>
-                        <td class="py-2 pr-3 text-right">
+                        <td class="py-2 pr-2 text-right font-mono text-xs">{{ p.surface_ha }} ha</td>
+                        <td class="py-2 pr-2 text-right">
                             <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold
                                 {{ 'bg-green-100 text-green-800' if p.score_potentiel >= 70 else 'bg-amber-100 text-amber-800' }}">
                                 {{ p.score_potentiel }}
                             </span>
                         </td>
-                        <td class="py-2 pr-3 text-center font-mono text-xs">{{ p.ndvi_mean if p.ndvi_mean is not none else '--' }}</td>
-                        <td class="py-2 pr-3 text-center font-mono text-xs">{{ p.evi_mean if p.evi_mean is not none else '--' }}</td>
+                        <td class="py-2 pr-2 text-xs text-gray-600" style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ p.proprietaire if p.proprietaire else (p.type_proprietaire if p.type_proprietaire else '') }}">
+                            {% if p.proprietaire %}
+                            {{ p.proprietaire }}
+                            {% elif p.type_proprietaire == 'Personne physique (presume)' %}
+                            <span class="text-gray-400 italic">Personne physique</span>
+                            {% else %}
+                            <span class="text-gray-300">--</span>
+                            {% endif %}
+                        </td>
                         <td class="py-2 text-center">
-                            {% if p.is_bio %}
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-lime-100 text-lime-800">Bio</span>
+                            {% if p.lat and p.lon %}
+                            <a href="https://www.google.com/maps?q={{ p.lat }},{{ p.lon }}&z=16" target="_blank"
+                               class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 hover:bg-blue-100"
+                               title="{{ p.lat }}, {{ p.lon }}">
+                                Voir
+                            </a>
                             {% else %}
                             <span class="text-xs text-gray-300">--</span>
                             {% endif %}
@@ -329,9 +354,28 @@
                 </tbody>
             </table>
         </div>
-        {% if parc.top_parcelles | length > 20 %}
-        <p class="text-xs text-gray-400 mt-2">{{ parc.top_parcelles | length }} parcelles au total dans le classement. API: <code>/api/parcelles</code></p>
-        {% endif %}
+    </div>
+</section>
+
+<!-- Section 5b : Carte Top 100 -->
+<section class="mb-8">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold text-gray-800">Carte interactive des 100 meilleures parcelles</h2>
+            <a href="/maps/carte_top100.html" target="_blank"
+               class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
+                </svg>
+                Plein ecran
+            </a>
+        </div>
+        <div class="rounded-lg overflow-hidden border border-gray-200" style="height:500px;">
+            <iframe src="/maps/carte_top100.html" width="100%" height="100%" frameborder="0" loading="lazy"></iframe>
+        </div>
+        <p class="text-xs text-gray-400 mt-2">
+            Cliquez sur une parcelle pour voir son detail. Le lien Google Maps permet de localiser precisement chaque parcelle.
+        </p>
     </div>
 </section>
 
@@ -349,7 +393,7 @@
                         <span class="font-mono font-medium">{{ zone.total_parcelles }}</span>
                     </div>
                     <div class="flex justify-between text-xs">
-                        <span class="text-gray-500">Cocotier existant</span>
+                        <span class="text-gray-500">Cocotiers existants</span>
                         <span class="font-mono font-medium text-blue-600">{{ zone.parcelles_cocotier_existant }} ({{ zone.surface_cocotier_ha }} ha)</span>
                     </div>
                     <div class="flex justify-between text-xs">
@@ -420,6 +464,7 @@
         <p class="text-sm text-gray-600 mb-4">
             Chaque parcelle RPG recoit un score composite (0-100) base sur 5 composantes ponderees.
             Les parcelles declarees cocotier (code NOX) sont classees a part.
+            Seules les parcelles en zone agricole (A) du PLU sont favorisees.
         </p>
 
         <div class="overflow-x-auto">
@@ -463,11 +508,11 @@
                         <td class="py-2.5 text-xs text-gray-500">&lt; 0.1 ha</td>
                     </tr>
                     <tr>
-                        <td class="py-2.5 pr-4 font-medium text-gray-700">Agriculture bio</td>
-                        <td class="py-2.5 pr-4 text-center font-mono">{{ (parc.poids_scoring.bio * 100) | int }}%</td>
-                        <td class="py-2.5 pr-4 text-xs text-gray-500">Oui</td>
-                        <td class="py-2.5 pr-4 text-xs text-gray-500">--</td>
-                        <td class="py-2.5 text-xs text-gray-500">Non</td>
+                        <td class="py-2.5 pr-4 font-medium text-gray-700">Zonage PLU</td>
+                        <td class="py-2.5 pr-4 text-center font-mono">{{ (parc.poids_scoring.plu * 100) | int }}%</td>
+                        <td class="py-2.5 pr-4 text-xs text-gray-500">Zone A (agricole)</td>
+                        <td class="py-2.5 pr-4 text-xs text-gray-500">Commune sans PLU</td>
+                        <td class="py-2.5 text-xs text-gray-500">Zone N, AU, U</td>
                     </tr>
                 </tbody>
             </table>
@@ -475,7 +520,7 @@
 
         <div class="mt-4 grid grid-cols-2 sm:grid-cols-5 gap-2">
             <div class="bg-blue-50 rounded-lg p-3 text-center">
-                <div class="text-xs text-gray-500">Cocotier existant</div>
+                <div class="text-xs text-gray-500">Cocotiers existants</div>
                 <div class="text-sm font-bold text-blue-600">Code NOX</div>
             </div>
             <div class="bg-green-50 rounded-lg p-3 text-center">

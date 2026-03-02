@@ -10,6 +10,9 @@ import rasterio
 import numpy as np
 import json
 import folium
+import time
+import urllib.request
+import urllib.parse
 from rasterstats import zonal_stats
 from pathlib import Path
 from datetime import datetime
@@ -42,8 +45,11 @@ CODES_NON_CONVERTIBLE = ['BEF', 'BCA']   # Banane (forte valeur ajoutee)
 W_USAGE = 0.35
 W_SATELLITE = 0.25
 W_TERRAIN = 0.20
+W_PLU = 0.10
 W_TAILLE = 0.10
-W_BIO = 0.10
+
+# URL WFS GPU pour les zonages PLU
+GPU_WFS_URL = 'https://data.geopf.fr/wfs/ows'
 
 # Constantes agronomiques
 DENSITE_COCOTIER_HA = 143       # arbres/ha (espacement 8x8m)
@@ -97,11 +103,25 @@ def load_rpg_data():
     # Reprojeter en WGS84
     parcelles = parcelles.to_crs(TARGET_CRS)
 
-    # Extraire code commune depuis id_parcel (format: 971_XXXXXXXX)
-    parcelles['code_commune'] = parcelles['id_parcel'].str[:3]
-    # Essayer d'extraire le code INSEE 5 chiffres si possible
-    # Le format est "971_XXXXXXXX", pas de code commune direct
-    # On utilisera une jointure spatiale ou le prefixe 971
+    # Jointure spatiale communes (contours geo.api.gouv.fr)
+    communes_file = BASE_DIR / 'communes_guadeloupe.geojson'
+    if communes_file.exists():
+        print("  Jointure spatiale communes...")
+        communes = gpd.read_file(communes_file).to_crs(TARGET_CRS)
+        communes = communes.rename(columns={'nom': 'commune', 'code': 'code_commune'})
+        # Jointure par centroide pour eviter les doublons multi-intersection
+        centroids = parcelles.copy()
+        centroids['geometry'] = centroids.geometry.centroid
+        joined = gpd.sjoin(centroids[['geometry']], communes[['commune', 'code_commune', 'geometry']], how='left', predicate='within')
+        joined = joined[~joined.index.duplicated(keep='first')]
+        parcelles['commune'] = joined['commune'].values
+        parcelles['code_commune'] = joined['code_commune'].values
+        with_commune = parcelles['commune'].notna().sum()
+        print(f"  {with_commune}/{len(parcelles)} parcelles avec commune identifiee")
+    else:
+        print("  ATTENTION: communes_guadeloupe.geojson non trouve, communes non disponibles")
+        parcelles['commune'] = None
+        parcelles['code_commune'] = None
 
     # ZDH (zones de difficulte)
     zdh = gpd.read_file(RPG_DIR / 'RPG_ZDH.gpkg')
@@ -197,25 +217,89 @@ def join_zdh_slope(parcelles, zdh):
     return parcelles
 
 
-def join_bio(parcelles, bio):
-    """Marque les parcelles en agriculture biologique via jointure spatiale."""
-    print("Jointure parcelles bio...")
+def fetch_plu_zones():
+    """Telecharge les zones agricoles (type A) du PLU via le WFS GPU."""
+    print("Telechargement des zones PLU (agricoles)...")
 
-    if len(bio) == 0:
-        parcelles['is_bio'] = False
-        print("  0 parcelles bio (fichier vide)")
+    plu_cache = OUTPUT_DIR / 'plu_zones_agricoles.geojson'
+    if plu_cache.exists():
+        print("  Cache local trouve, chargement...")
+        zones = gpd.read_file(plu_cache)
+        print(f"  {len(zones)} zones agricoles chargees depuis le cache")
+        return zones
+
+    # Requete WFS pour toutes les zones agricoles de Guadeloupe
+    params = urllib.parse.urlencode({
+        'SERVICE': 'WFS',
+        'VERSION': '2.0.0',
+        'REQUEST': 'GetFeature',
+        'TYPENAMES': 'wfs_du:zone_urba',
+        'CQL_FILTER': "partition LIKE 'DU_971%' AND typezone='A'",
+        'OUTPUTFORMAT': 'application/json',
+    })
+    url = f'{GPU_WFS_URL}?{params}'
+
+    try:
+        print("  Requete WFS GPU...")
+        req = urllib.request.Request(url, headers={'User-Agent': 'CoconutMapping/1.0'})
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            data = json.loads(resp.read())
+
+        zones = gpd.GeoDataFrame.from_features(data['features'], crs='EPSG:4326')
+        print(f"  {len(zones)} zones agricoles telechargees")
+
+        # Sauvegarder en cache
+        zones.to_file(plu_cache, driver='GeoJSON')
+        print(f"  Cache sauvegarde: {plu_cache}")
+        return zones
+
+    except Exception as e:
+        print(f"  ERREUR telechargement PLU: {e}")
+        print("  Score PLU desactive (toutes les parcelles = neutre)")
+        return gpd.GeoDataFrame(columns=['geometry', 'typezone'], crs='EPSG:4326')
+
+
+def join_plu(parcelles, plu_zones):
+    """Marque les parcelles situees en zone agricole du PLU."""
+    print("Jointure spatiale PLU...")
+
+    if len(plu_zones) == 0:
+        parcelles['in_zone_agricole'] = True  # Par defaut si pas de donnee
+        print("  Pas de donnees PLU, toutes les parcelles considerees en zone agricole")
         return parcelles
 
-    # Jointure spatiale : une parcelle est bio si elle intersecte une geometrie BIO
-    bio_simple = bio[['geometry']].copy()
-    bio_simple['_bio'] = True
+    # Jointure spatiale : une parcelle est en zone A si son centroide est dans une zone A
+    centroids = parcelles.copy()
+    centroids['geometry'] = centroids.geometry.centroid
 
-    joined = gpd.sjoin(parcelles, bio_simple, how='left', predicate='intersects')
+    plu_simple = plu_zones[['geometry']].copy()
+    plu_simple['_in_zone_a'] = True
+
+    joined = gpd.sjoin(centroids[['geometry']], plu_simple, how='left', predicate='within')
     joined = joined[~joined.index.duplicated(keep='first')]
-    parcelles['is_bio'] = joined['_bio'].fillna(False).astype(bool).values
 
-    nb_bio = parcelles['is_bio'].sum()
-    print(f"  {nb_bio} parcelles bio")
+    parcelles['in_zone_agricole'] = joined['_in_zone_a'].fillna(False).astype(bool).values
+
+    # Pour les communes sans PLU (7 communes), considerer les parcelles RPG comme en zone agricole
+    # On identifie les communes sans PLU par l'absence de zones A
+    communes_avec_plu = set()
+    if 'partition' in plu_zones.columns:
+        for p in plu_zones['partition'].dropna().unique():
+            # partition = 'DU_97105' -> code = '97105'
+            code = p.replace('DU_', '')
+            communes_avec_plu.add(code)
+
+    if communes_avec_plu and 'code_commune' in parcelles.columns:
+        sans_plu = ~parcelles['code_commune'].isin(communes_avec_plu)
+        parcelles.loc[sans_plu, 'in_zone_agricole'] = True
+        nb_sans_plu = sans_plu.sum()
+        if nb_sans_plu > 0:
+            print(f"  {nb_sans_plu} parcelles dans communes sans PLU (considerees en zone agricole)")
+
+    nb_zone_a = parcelles['in_zone_agricole'].sum()
+    nb_hors = (~parcelles['in_zone_agricole']).sum()
+    print(f"  {nb_zone_a} parcelles en zone agricole PLU")
+    print(f"  {nb_hors} parcelles hors zone agricole (penalisees)")
     return parcelles
 
 
@@ -269,16 +353,16 @@ def compute_suitability_score(parcelles):
         np.where(surface >= 0.1, 30, 10)))
     ).astype(float)
 
-    # 5. Score bio (0 ou 100)
-    parcelles['score_bio'] = np.where(parcelles['is_bio'], 100, 0).astype(float)
+    # 5. Score PLU (0 ou 100) - zone agricole du PLU
+    parcelles['score_plu'] = np.where(parcelles['in_zone_agricole'], 100, 0).astype(float)
 
     # Score composite
     parcelles['score_potentiel'] = (
         parcelles['score_usage'] * W_USAGE +
         parcelles['score_satellite'] * W_SATELLITE +
         parcelles['score_terrain'] * W_TERRAIN +
-        parcelles['score_taille'] * W_TAILLE +
-        parcelles['score_bio'] * W_BIO
+        parcelles['score_plu'] * W_PLU +
+        parcelles['score_taille'] * W_TAILLE
     ).round(1)
 
     # Marquer les cocotiers existants
@@ -287,7 +371,7 @@ def compute_suitability_score(parcelles):
 
     # Categoriser
     parcelles['categorie'] = np.where(
-        parcelles['score_potentiel'] == -1, 'Cocotier existant',
+        parcelles['score_potentiel'] == -1, 'Cocotiers existants',
         np.where(parcelles['score_potentiel'] >= 70, 'Potentiel eleve',
         np.where(parcelles['score_potentiel'] >= 45, 'Potentiel moyen',
         np.where(parcelles['score_potentiel'] >= 20, 'Potentiel faible',
@@ -295,7 +379,7 @@ def compute_suitability_score(parcelles):
     )
 
     # Afficher stats
-    for cat in ['Cocotier existant', 'Potentiel eleve', 'Potentiel moyen', 'Potentiel faible', 'Non adapte']:
+    for cat in ['Cocotiers existants', 'Potentiel eleve', 'Potentiel moyen', 'Potentiel faible', 'Non adapte']:
         mask = parcelles['categorie'] == cat
         print(f"  {cat}: {mask.sum()} parcelles, {parcelles.loc[mask, 'surface_ha'].sum():.1f} ha")
 
@@ -308,8 +392,8 @@ def compute_volume_estimates(parcelles):
 
     results = {}
 
-    # Cocotier existant
-    existant = parcelles[parcelles['categorie'] == 'Cocotier existant']
+    # Cocotiers existants
+    existant = parcelles[parcelles['categorie'] == 'Cocotiers existants']
     results['existant'] = {
         'parcelles': int(len(existant)),
         'surface_ha': round(float(existant['surface_ha'].sum()), 1),
@@ -375,7 +459,7 @@ def compute_stats_par_commune(parcelles):
     # Approche simplifiee : on groupe toutes les parcelles ensemble
     # et on identifie les zones par cluster geographique
     dispo = parcelles[parcelles['categorie'].isin(['Potentiel eleve', 'Potentiel moyen'])]
-    existant = parcelles[parcelles['categorie'] == 'Cocotier existant']
+    existant = parcelles[parcelles['categorie'] == 'Cocotiers existants']
 
     # Statistiques globales par categorie (pas par commune sans jointure admin)
     # On fait une grille lon/lat pour creer des zones
@@ -406,7 +490,7 @@ def compute_stats_par_commune(parcelles):
             continue
 
         dispo_z = sub[sub['categorie'].isin(['Potentiel eleve', 'Potentiel moyen'])]
-        exist_z = sub[sub['categorie'] == 'Cocotier existant']
+        exist_z = sub[sub['categorie'] == 'Cocotiers existants']
         eleve_z = sub[sub['categorie'] == 'Potentiel eleve']
 
         zones.append({
@@ -440,7 +524,7 @@ def create_parcelles_map(parcelles):
 
     # Couleurs par categorie
     colors = {
-        'Cocotier existant': '#2196F3',
+        'Cocotiers existants': '#2196F3',
         'Potentiel eleve': '#4CAF50',
         'Potentiel moyen': '#FFC107',
         'Potentiel faible': '#FF9800',
@@ -490,7 +574,7 @@ def create_parcelles_map(parcelles):
                 background:white;padding:12px 16px;border-radius:8px;
                 box-shadow:0 2px 6px rgba(0,0,0,0.3);font-size:13px;line-height:1.8;">
         <b style="font-size:14px;">Potentiel cocotier</b><br>
-        <span style="color:#2196F3;font-size:16px;">&#9632;</span> Cocotier existant<br>
+        <span style="color:#2196F3;font-size:16px;">&#9632;</span> Cocotiers existants<br>
         <span style="color:#4CAF50;font-size:16px;">&#9632;</span> Potentiel eleve (&ge;70)<br>
         <span style="color:#FFC107;font-size:16px;">&#9632;</span> Potentiel moyen (45-69)<br>
         <span style="color:#FF9800;font-size:16px;">&#9632;</span> Potentiel faible (20-44)<br>
@@ -506,16 +590,61 @@ def create_parcelles_map(parcelles):
     return output_file
 
 
+def reverse_geocode(lat, lon):
+    """Reverse geocode via Nominatim (OpenStreetMap). Retourne le lieu-dit ou None."""
+    try:
+        url = f'https://nominatim.openstreetmap.org/reverse?lat={lat}&lon={lon}&format=json&zoom=16&addressdetails=1'
+        req = urllib.request.Request(url, headers={'User-Agent': 'CoconutMapping/1.0'})
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            data = json.loads(resp.read())
+        addr = data.get('address', {})
+        # Construire le lieu-dit : road > hamlet > locality > suburb
+        road = addr.get('road', '')
+        hamlet = addr.get('hamlet', addr.get('locality', addr.get('suburb', '')))
+        if road and hamlet:
+            return f"{hamlet}, {road}"
+        return road or hamlet or None
+    except Exception:
+        return None
+
+
 def save_results(parcelles, volumes, zones):
     """Sauvegarde les resultats en JSON."""
     print("Sauvegarde des resultats...")
 
     # Top 100 parcelles par score
     top = parcelles[parcelles['score_potentiel'] > 0].nlargest(100, 'score_potentiel')
+
+    # Calcul des centroides GPS
+    print("  Calcul des coordonnees GPS...")
+    top_centroids = top.geometry.centroid
+
+    # Reverse geocoding Nominatim pour les lieux-dits
+    print("  Reverse geocoding (Nominatim)... ~100 requetes, 1/s")
+    lieux_dits = {}
+    for i, (idx, row) in enumerate(top.iterrows()):
+        c = top_centroids.loc[idx]
+        lat, lon = c.y, c.x
+        lieu = reverse_geocode(lat, lon)
+        lieux_dits[idx] = lieu
+        if (i + 1) % 10 == 0:
+            print(f"    {i + 1}/100 parcelles geocodees...")
+        time.sleep(1.1)  # Respecter le rate limit Nominatim
+
+    found = sum(1 for v in lieux_dits.values() if v)
+    print(f"  {found}/100 lieux-dits trouves")
+
     top_list = []
     for _, row in top.iterrows():
+        commune_val = row.get('commune')
+        centroid = top_centroids.loc[row.name]
+        lat, lon = round(centroid.y, 6), round(centroid.x, 6)
         top_list.append({
             'id_parcel': str(row['id_parcel']),
+            'commune': str(commune_val) if commune_val is not None and str(commune_val) != 'nan' else None,
+            'lieu_dit': lieux_dits.get(row.name),
+            'lat': lat,
+            'lon': lon,
             'code_culture': str(row['code_cultu']),
             'surface_ha': round(float(row['surface_ha']), 2),
             'score_potentiel': round(float(row['score_potentiel']), 1),
@@ -523,7 +652,7 @@ def save_results(parcelles, volumes, zones):
             'ndvi_mean': round(float(row['ndvi_mean']), 3) if not np.isnan(row['ndvi_mean']) else None,
             'evi_mean': round(float(row['evi_mean']), 3) if not np.isnan(row['evi_mean']) else None,
             'slope_category': str(row.get('slope_category', '')) if row.get('slope_category') is not None else None,
-            'is_bio': bool(row.get('is_bio', False)),
+            'in_zone_agricole': bool(row.get('in_zone_agricole', True)),
         })
 
     # Synthese par code culture
@@ -555,8 +684,8 @@ def save_results(parcelles, volumes, zones):
             'usage_actuel': W_USAGE,
             'satellite': W_SATELLITE,
             'terrain': W_TERRAIN,
+            'plu': W_PLU,
             'taille': W_TAILLE,
-            'bio': W_BIO,
         },
         'volumes': volumes,
         'par_zone': zones,
@@ -569,6 +698,93 @@ def save_results(parcelles, volumes, zones):
         json.dump(analysis, f, indent=2, ensure_ascii=False)
     print(f"  Resultats: {output_file}")
     return analysis
+
+
+def create_top100_map(parcelles):
+    """Genere une carte Folium avec uniquement les top 100 parcelles."""
+    print("Generation de la carte Top 100...")
+
+    top = parcelles[parcelles['score_potentiel'] > 0].nlargest(100, 'score_potentiel').copy()
+    top['geometry'] = top.geometry.simplify(0.0001)
+
+    # Centrer la carte sur les parcelles
+    centroids = top.geometry.centroid
+    center_lat = centroids.y.mean()
+    center_lon = centroids.x.mean()
+
+    m = folium.Map(location=[center_lat, center_lon], zoom_start=11, tiles='OpenStreetMap')
+
+    # Fond satellite
+    folium.TileLayer(
+        tiles='https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+        attr='Esri', name='Satellite', overlay=False
+    ).add_to(m)
+
+    # Couleur par score
+    def score_color(score):
+        if score >= 90:
+            return '#15803d'  # vert fonce
+        elif score >= 80:
+            return '#22c55e'  # vert
+        elif score >= 70:
+            return '#4ade80'  # vert clair
+        elif score >= 60:
+            return '#facc15'  # jaune
+        else:
+            return '#fb923c'  # orange
+
+    # Ajouter les parcelles
+    fg = folium.FeatureGroup(name=f"Top 100 parcelles")
+
+    for rank, (idx, row) in enumerate(top.iterrows(), 1):
+        color = score_color(row['score_potentiel'])
+        centroid = row.geometry.centroid
+        commune = row.get('commune', '') or ''
+        plu_label = ' | Zone A' if row.get('in_zone_agricole') else ''
+
+        popup_html = (
+            f"<div style='font-family:sans-serif;font-size:12px;min-width:200px;'>"
+            f"<b>#{rank}</b> - {row['id_parcel']}<br>"
+            f"<b>{commune}</b><br>"
+            f"Culture: {row['code_cultu']} | {row['surface_ha']:.2f} ha{plu_label}<br>"
+            f"<b>Score: {row['score_potentiel']}</b><br>"
+            f"NDVI: {row['ndvi_mean']:.3f} | EVI: {row['evi_mean']:.3f}<br>"
+            f"<a href='https://www.google.com/maps?q={centroid.y},{centroid.x}&z=16' target='_blank'>Google Maps</a>"
+            f"</div>"
+        )
+
+        # Polygone de la parcelle
+        folium.GeoJson(
+            row.geometry.__geo_interface__,
+            style_function=lambda f, c=color: {
+                'fillColor': c, 'color': '#ffffff', 'weight': 2,
+                'fillOpacity': 0.7,
+            },
+            popup=folium.Popup(popup_html, max_width=300),
+            tooltip=f"#{rank} {row['id_parcel']} — Score {row['score_potentiel']} — {commune}",
+        ).add_to(fg)
+
+        # Marqueur numerote au centroide (avec popup identique)
+        folium.CircleMarker(
+            location=[centroid.y, centroid.x],
+            radius=6,
+            color='#ffffff',
+            fill=True,
+            fill_color=color,
+            fill_opacity=1.0,
+            weight=2,
+            popup=folium.Popup(popup_html, max_width=300),
+            tooltip=f"#{rank}",
+        ).add_to(fg)
+
+    fg.add_to(m)
+
+    folium.LayerControl().add_to(m)
+
+    output_file = OUTPUT_DIR / 'carte_top100.html'
+    m.save(str(output_file))
+    print(f"  Carte Top 100: {output_file}")
+    return output_file
 
 
 # ============================================================================
@@ -585,7 +801,7 @@ def main():
     OUTPUT_DIR.mkdir(exist_ok=True)
 
     # 1. Charger les donnees RPG
-    parcelles, zdh, bio = load_rpg_data()
+    parcelles, zdh, _bio = load_rpg_data()
 
     # 2. Extraire stats satellite
     parcelles = extract_satellite_stats(parcelles)
@@ -593,8 +809,9 @@ def main():
     # 3. Jointure pente ZDH
     parcelles = join_zdh_slope(parcelles, zdh)
 
-    # 4. Jointure bio
-    parcelles = join_bio(parcelles, bio)
+    # 4. Telechargement et jointure PLU (zones agricoles)
+    plu_zones = fetch_plu_zones()
+    parcelles = join_plu(parcelles, plu_zones)
 
     # 5. Scoring
     parcelles = compute_suitability_score(parcelles)
@@ -605,10 +822,13 @@ def main():
     # 7. Stats par zone
     zones = compute_stats_par_commune(parcelles)
 
-    # 8. Carte
+    # 8. Carte complete
     create_parcelles_map(parcelles)
 
-    # 9. Sauvegarder
+    # 9. Carte top 100
+    create_top100_map(parcelles)
+
+    # 10. Sauvegarder (avec reverse geocoding)
     analysis = save_results(parcelles, volumes, zones)
 
     print()
@@ -617,7 +837,7 @@ def main():
     print("=" * 60)
     v = volumes
     print(f"  Parcelles analysees   : {len(parcelles)}")
-    print(f"  Cocotier existant     : {v['existant']['parcelles']} parcelles, {v['existant']['surface_ha']} ha")
+    print(f"  Cocotiers existants     : {v['existant']['parcelles']} parcelles, {v['existant']['surface_ha']} ha")
     print(f"  Potentiel eleve       : {v['potentiel_eleve']['parcelles']} parcelles, {v['potentiel_eleve']['surface_brute_ha']} ha brut")
     print(f"  Potentiel moyen       : {v['potentiel_moyen']['parcelles']} parcelles, {v['potentiel_moyen']['surface_brute_ha']} ha brut")
     print(f"  Surface plantable     : {v['total_disponible']['surface_realiste_ha']} ha (realiste, 15%)")
